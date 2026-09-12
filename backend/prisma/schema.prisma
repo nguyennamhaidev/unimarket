@@ -1,0 +1,243 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  fullName      String
+  avatar        String?
+  bio           String?
+  zalo          String?
+  facebook      String?
+  instagram     String?
+  universityId  String?
+  university    University? @relation(fields: [universityId], references: [id])
+  faculty       String?
+  studentCohort String?
+  city          String    @default("Hà Nội")
+  district      String?
+  role          String    @default("USER") // USER, ADMIN
+  status        String    @default("ACTIVE") // ACTIVE, BANNED
+  rating        Float     @default(5.0)
+  totalReviews  Int       @default(0)
+  totalSold     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  products            Product[]
+  favorites           Favorite[]
+  following           Follow[]       @relation("Following")
+  followers           Follow[]       @relation("Followers")
+  buyerConversations  Conversation[] @relation("BuyerConversations")
+  sellerConversations Conversation[] @relation("SellerConversations")
+  messages            Message[]
+  buyerTransactions   Transaction[]  @relation("BuyerTransactions")
+  sellerTransactions  Transaction[]  @relation("SellerTransactions")
+  reviewsGiven        Review[]       @relation("ReviewsGiven")
+  reviewsReceived     Review[]       @relation("ReviewsReceived")
+  reportsMade         Report[]       @relation("ReportsMade")
+  reportsAgainst      Report[]       @relation("ReportsAgainst")
+  blockedUsers        BlockedUser[]  @relation("Blocker")
+  blockedBy           BlockedUser[]  @relation("Blocked")
+  notifications       Notification[]
+  adminLogs           AdminLog[]
+}
+
+model University {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  shortName String
+  city      String
+  logoUrl   String?
+  isPopular Boolean   @default(false)
+  users     User[]
+  products  Product[]
+}
+
+model Category {
+  id            String     @id @default(cuid())
+  name          String
+  slug          String     @unique
+  icon          String?
+  parentId      String?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  products      Product[]
+}
+
+model Product {
+  id              String         @id @default(cuid())
+  title           String
+  description     String
+  price           Float          @default(0)
+  isNegotiable    Boolean        @default(true)
+  isFree          Boolean        @default(false)
+  condition       String         // NEW, LIKE_NEW, GOOD, USED, OLD
+  status          String         @default("ACTIVE") // ACTIVE, SOLD, HIDDEN, REJECTED, PENDING
+  sellerId        String
+  seller          User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        Category       @relation(fields: [categoryId], references: [id])
+  universityId    String?
+  university      University?    @relation(fields: [universityId], references: [id])
+  city            String         @default("Hà Nội")
+  district        String
+  meetingSpotType String         // CAMPUS, DORM, RENTAL_AREA, CENTER, FLEXIBLE
+  meetingSpotNote String?
+  zalo            String?
+  facebook        String?
+  instagram       String?
+  views           Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  images        ProductImage[]
+  favorites     Favorite[]
+  conversations Conversation[]
+  transactions  Transaction[]
+  reports       Report[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  isPrimary Boolean  @default(false)
+  order     Int      @default(0)
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  buyerId       String
+  buyer         User      @relation("BuyerConversations", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId      String
+  seller        User      @relation("SellerConversations", fields: [sellerId], references: [id], onDelete: Cascade)
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  messages Message[]
+
+  @@unique([productId, buyerId, sellerId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  text           String
+  imageUrl       String?
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model Transaction {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sellerId    String
+  seller      User      @relation("SellerTransactions", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyerId     String
+  buyer       User      @relation("BuyerTransactions", fields: [buyerId], references: [id], onDelete: Cascade)
+  status      String    @default("COMPLETED") // COMPLETED, CANCELLED
+  completedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  reviews Review[]
+}
+
+model Review {
+  id            String       @id @default(cuid())
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  reviewerId    String
+  reviewer      User         @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  targetUserId  String
+  targetUser    User         @relation("ReviewsReceived", fields: [targetUserId], references: [id], onDelete: Cascade)
+  rating        Int
+  comment       String
+  createdAt     DateTime     @default(now())
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  reporterId     String
+  reporter       User     @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reportedUserId String?
+  reportedUser   User?    @relation("ReportsAgainst", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reason         String
+  description    String
+  status         String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  adminNote      String?
+  createdAt      DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  type      String   // MESSAGE, SOLD, REVIEW, NEW_POST, PRICE_DROP, SYSTEM
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String
+  targetId   String
+  details    String
+  createdAt  DateTime @default(now())
+}
