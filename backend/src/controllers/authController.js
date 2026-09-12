@@ -72,19 +72,34 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng nhập email/username và mật khẩu.' });
     }
 
-    const cleanAccount = account.trim().toLowerCase();
+    const rawAccount = account.trim();
+    const cleanAccount = rawAccount.toLowerCase();
 
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: {
         OR: [
           { email: cleanAccount },
-          { username: cleanAccount }
+          { email: rawAccount },
+          { username: cleanAccount },
+          { username: rawAccount }
         ]
       },
       include: {
         university: true
       }
     });
+
+    if (!user) {
+      // Find case-insensitively across all users in database
+      const candidates = await prisma.user.findMany({
+        include: { university: true }
+      });
+      user = candidates.find(
+        (u) =>
+          u.email.toLowerCase() === cleanAccount ||
+          u.username.toLowerCase() === cleanAccount
+      );
+    }
 
     if (!user) {
       return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác.' });

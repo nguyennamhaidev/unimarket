@@ -74,22 +74,6 @@ export default function AuthPage({ initialMode = 'login' }) {
     }
   };
 
-  // 1-Click Demo Login for Admin: NguyenNamHai / Plan_Me22
-  const handleQuickLoginAdmin = async () => {
-    setAccount('NguyenNamHai');
-    setPassword('Plan_Me22');
-    setErrorMsg('');
-    setLoading(true);
-    try {
-      await login('NguyenNamHai', 'Plan_Me22');
-      navigate(redirectUrl);
-    } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Lỗi đăng nhập Admin.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl max-w-lg w-full p-6 sm:p-10 space-y-6">
@@ -107,26 +91,6 @@ export default function AuthPage({ initialMode = 'login' }) {
               ? 'Tham gia trao đổi giáo trình & đồ cũ khuôn viên trường'
               : 'Đăng ký siêu nhanh - Không cần CCCD, không cần KYC'}
           </p>
-        </div>
-
-        {/* 1-Click Admin Login Button */}
-        <div className="p-3.5 bg-indigo-50/70 rounded-2xl border border-indigo-200/80 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span>Tài khoản Quản Trị Viên (Admin):</span>
-            </div>
-            <div className="text-[11px] text-indigo-700 font-mono mt-0.5">
-              NguyenNamHai • pass: Plan_Me22
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleQuickLoginAdmin}
-            className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm shadow-indigo-600/20 shrink-0 transition-all"
-          >
-            Đăng nhập Admin
-          </button>
         </div>
 
         {errorMsg && (
