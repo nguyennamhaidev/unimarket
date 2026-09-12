@@ -2,15 +2,18 @@ import axios from 'axios';
 
 // Determine backend API URL dynamically
 const getBaseURL = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+  let url = import.meta.env.VITE_API_URL;
+  
+  if (!url) {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      url = 'http://localhost:5000/api';
+    } else {
+      url = 'https://unimarket-dnwj.onrender.com/api';
+    }
   }
-  // If running locally on localhost
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return 'http://localhost:5000/api';
-  }
-  // 🔴 ĐÃ THAY Ở DÒNG NÀY:
-  return 'https://unimarket-dnwj.onrender.com/api';
+
+  // Xóa dấu / ở cuối nếu có để tránh lỗi đúp dấu gạch chéo
+  return url.replace(/\/+$/, '');
 };
 
 const api = axios.create({
@@ -34,16 +37,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Session expired or invalid
       const currentPath = window.location.pathname;
       const isAuthPage = currentPath === '/login' || currentPath === '/register';
       const hadToken = !!localStorage.getItem('unimarket_token');
 
-      // Only redirect if not already on auth page and a token was present
       if (!isAuthPage && hadToken) {
         localStorage.removeItem('unimarket_token');
         localStorage.removeItem('unimarket_user');
-        // Let React state update or navigate cleanly without hard reloading if possible
         if (!window.location.search.includes('expired=true')) {
           window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}&expired=true`;
         }
