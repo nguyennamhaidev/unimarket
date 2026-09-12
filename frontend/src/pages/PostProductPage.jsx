@@ -31,7 +31,9 @@ export default function PostProductPage() {
   const [price, setPrice] = useState('');
   const [isFree, setIsFree] = useState(false);
   const [isNegotiable, setIsNegotiable] = useState(true);
+  const [city, setCity] = useState(user?.city || 'Hà Nội');
   const [universityId, setUniversityId] = useState(user?.universityId || '');
+  const [uniSearch, setUniSearch] = useState('');
   const [district, setDistrict] = useState(user?.district || 'Cầu Giấy');
   const [meetingSpotType, setMeetingSpotType] = useState('CAMPUS');
   const [meetingSpotNote, setMeetingSpotNote] = useState('');
@@ -130,7 +132,8 @@ export default function PostProductPage() {
         isFree,
         condition,
         categoryId,
-        universityId,
+        universityId: universityId || null,
+        city: city.trim(),
         district: district.trim(),
         meetingSpotType,
         meetingSpotNote: meetingSpotNote.trim(),
@@ -411,40 +414,83 @@ export default function PostProductPage() {
           <div>
             <h2 className="font-bold text-base text-slate-800 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-emerald-600" />
-              <span>Địa điểm &amp; Trường học giao dịch *</span>
+              <span>Địa điểm &amp; Trường học giao dịch</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Hệ thống tuyệt đối không công khai địa chỉ phòng trọ cá nhân. Hãy chọn điểm hẹn khuôn viên hoặc nơi công cộng.
+              Chọn Tỉnh/Thành phố, trường ĐH hoặc nhập địa chỉ/khu vực tùy ý để người mua sinh viên dễ tìm thấy.
             </p>
           </div>
 
+          {/* City & District */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Trường Đại Học</label>
+              <label className="text-xs font-bold text-slate-700">Tỉnh / Thành phố *</label>
               <select
-                value={universityId}
-                onChange={(e) => setUniversityId(e.target.value)}
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                {universities.map(u => (
-                  <option key={u.id} value={u.id}>
-                    🏫 {u.shortName} - {u.name}
-                  </option>
-                ))}
+                <option value="Hà Nội">Hà Nội</option>
+                <option value="TP.HCM">TP. Hồ Chí Minh</option>
+                <option value="Đà Nẵng">Đà Nẵng</option>
+                <option value="Cần Thơ">Cần Thơ</option>
+                <option value="Hải Phòng">Hải Phòng</option>
+                <option value="Thái Nguyên">Thái Nguyên</option>
+                <option value="Thừa Thiên Huế">Thừa Thiên Huế</option>
+                <option value="Khánh Hòa">Khánh Hòa (Nha Trang)</option>
+                <option value="Bình Dương">Bình Dương</option>
+                <option value="Đồng Nai">Đồng Nai</option>
+                <option value="Toàn quốc">Tỉnh / Thành phố khác</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Khu vực / Quận *</label>
+              <label className="text-xs font-bold text-slate-700">Khu vực / Quận / Huyện *</label>
               <input
                 type="text"
-                placeholder="VD: Cầu Giấy, Hai Bà Trưng, Đống Đa..."
+                placeholder="VD: Cầu Giấy, Đống Đa, Bách Khoa, KTX Khu B, Thủ Đức..."
                 value={district}
                 onChange={(e) => setDistrict(e.target.value)}
                 required
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
+          </div>
+
+          {/* University Picker with Search Filter */}
+          <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-800">
+                🏫 Trường Đại Học / Học Viện (Toàn quốc)
+              </label>
+              <input
+                type="text"
+                placeholder="🔍 Tìm nhanh tên trường (Bách Khoa, NEU, Y, Ngoại Thương...)"
+                value={uniSearch}
+                onChange={(e) => setUniSearch(e.target.value)}
+                className="w-full sm:w-64 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <select
+              value={universityId}
+              onChange={(e) => setUniversityId(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">-- Chọn trường hoặc để trống nếu giao dịch tại khu vực tự do --</option>
+              {universities
+                .filter(u => 
+                  !uniSearch.trim() || 
+                  u.name.toLowerCase().includes(uniSearch.toLowerCase()) || 
+                  u.shortName.toLowerCase().includes(uniSearch.toLowerCase()) ||
+                  u.city.toLowerCase().includes(uniSearch.toLowerCase())
+                )
+                .map(u => (
+                  <option key={u.id} value={u.id}>
+                    [{u.city}] {u.shortName} - {u.name}
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Meeting spot type */}
@@ -474,16 +520,42 @@ export default function PostProductPage() {
             </div>
           </div>
 
-          {/* Specific Meeting Note */}
+          {/* Specific Meeting Note & Landmark Suggestions */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Gợi ý địa điểm cụ thể (Công cộng)</label>
+            <label className="text-xs font-bold text-slate-700">
+              Gợi ý địa chỉ / Điểm hẹn cụ thể (Công cộng)
+            </label>
             <input
               type="text"
-              placeholder="VD: Cổng Parabol Bách Khoa, KTX B10, sảnh nhà A1 NEU, cổng 144 Xuân Thủy..."
+              placeholder="VD: Cổng Parabol Bách Khoa, KTX B10, sảnh nhà A1 NEU, cổng 144 Xuân Thủy, ngõ 175 Cầu Giấy..."
               value={meetingSpotNote}
               onChange={(e) => setMeetingSpotNote(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-slate-400 font-medium">Gợi ý nhanh:</span>
+              {[
+                'Cổng Parabol ĐH Bách Khoa',
+                'Sảnh nhà A1 NEU',
+                'Cổng 144 Xuân Thủy (ĐHQG)',
+                'KTX Mễ Trì',
+                'KTX B10 Bách Khoa',
+                'Cổng ĐH Thương Mại',
+                'Cổng KTX Khu A ĐHQG',
+                'Cổng KTX Khu B ĐHQG',
+                'Cổng ĐH Sư Phạm Kỹ Thuật',
+                'Cổng ĐH Bách Khoa ĐN'
+              ].map((lm, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => setMeetingSpotNote(lm)}
+                  className="text-[10px] px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium transition-colors"
+                >
+                  + {lm}
+                </button>
+              ))}
+            </div>
           </div>
 
         </div>

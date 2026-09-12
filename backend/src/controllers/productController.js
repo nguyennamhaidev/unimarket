@@ -7,6 +7,7 @@ exports.getProducts = async (req, res) => {
       categoryId,
       categorySlug,
       universityId,
+      city,
       district,
       condition,
       isFree,
@@ -33,8 +34,16 @@ exports.getProducts = async (req, res) => {
         { title: { contains: q } },
         { description: { contains: q } },
         { district: { contains: q } },
-        { meetingSpotNote: { contains: q } }
+        { city: { contains: q } },
+        { meetingSpotNote: { contains: q } },
+        { university: { name: { contains: q } } },
+        { university: { shortName: { contains: q } } }
       ];
+    }
+
+    // City Filter
+    if (city && city !== 'all' && city.trim() !== '') {
+      where.city = { contains: city.trim() };
     }
 
     // Category
@@ -278,6 +287,7 @@ exports.createProduct = async (req, res) => {
       condition = 'GOOD',
       categoryId,
       universityId,
+      city,
       district,
       meetingSpotType = 'CAMPUS',
       meetingSpotNote = '',
@@ -304,6 +314,7 @@ exports.createProduct = async (req, res) => {
         condition,
         categoryId,
         universityId: universityId || req.user.universityId || null,
+        city: city ? city.trim() : (req.user.city || 'Hà Nội'),
         district: district.trim(),
         meetingSpotType,
         meetingSpotNote: meetingSpotNote ? meetingSpotNote.trim() : null,

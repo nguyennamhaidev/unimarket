@@ -27,7 +27,9 @@ export default function ProductsPage() {
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
   const [categorySlug, setCategorySlug] = useState(searchParams.get('categorySlug') || '');
+  const [city, setCity] = useState(searchParams.get('city') || '');
   const [universityId, setUniversityId] = useState(searchParams.get('universityId') || '');
+  const [uniSearch, setUniSearch] = useState('');
   const [district, setDistrict] = useState(searchParams.get('district') || '');
   const [condition, setCondition] = useState(searchParams.get('condition') || '');
   const [isFree, setIsFree] = useState(searchParams.get('isFree') === 'true');
@@ -47,6 +49,7 @@ export default function ProductsPage() {
     setSearch(searchParams.get('search') || '');
     setCategoryId(searchParams.get('categoryId') || '');
     setCategorySlug(searchParams.get('categorySlug') || '');
+    setCity(searchParams.get('city') || '');
     setUniversityId(searchParams.get('universityId') || '');
     setDistrict(searchParams.get('district') || '');
     setCondition(searchParams.get('condition') || '');
@@ -83,6 +86,7 @@ export default function ProductsPage() {
       search,
       categoryId,
       categorySlug,
+      city,
       universityId,
       district,
       condition,
@@ -111,7 +115,9 @@ export default function ProductsPage() {
     setSearch('');
     setCategoryId('');
     setCategorySlug('');
+    setCity('');
     setUniversityId('');
+    setUniSearch('');
     setDistrict('');
     setCondition('');
     setIsFree(false);
@@ -121,6 +127,8 @@ export default function ProductsPage() {
     setSortBy('newest');
     setSearchParams({});
   };
+
+  const popularCities = ['Hà Nội', 'TP.HCM', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Thái Nguyên', 'Thừa Thiên Huế'];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -164,6 +172,36 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Quick Location Pills */}
+      <div className="flex items-center gap-2 pt-4 overflow-x-auto pb-1">
+        <span className="text-xs font-bold text-slate-400 shrink-0">Khu vực:</span>
+        <button
+          onClick={() => {
+            setCity('');
+            applyFilters({ city: '' });
+          }}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+            !city ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          📍 Tất cả Toàn quốc
+        </button>
+        {popularCities.map(c => (
+          <button
+            key={c}
+            onClick={() => {
+              setCity(c);
+              applyFilters({ city: c });
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+              city === c ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mt-6">
         
         {/* Sidebar Filters (Desktop) */}
@@ -184,11 +222,11 @@ export default function ProductsPage() {
 
           {/* Search keyword */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Từ khóa</label>
+            <label className="text-xs font-bold text-slate-700">Từ khóa &amp; Địa chỉ</label>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Tên đồ, mô tả..."
+                placeholder="Tên đồ, mô tả, KTX, cổng trường..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
@@ -198,23 +236,67 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {/* University Filter */}
+          {/* City Filter */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-              <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Trường Đại Học</span>
-            </label>
+            <label className="text-xs font-bold text-slate-700">Tỉnh / Thành phố</label>
+            <select
+              value={city}
+              onChange={(e) => {
+                setCity(e.target.value);
+                applyFilters({ city: e.target.value });
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Tất cả Tỉnh / Thành phố</option>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="TP.HCM">TP. Hồ Chí Minh</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+              <option value="Cần Thơ">Cần Thơ</option>
+              <option value="Hải Phòng">Hải Phòng</option>
+              <option value="Thái Nguyên">Thái Nguyên</option>
+              <option value="Thừa Thiên Huế">Thừa Thiên Huế</option>
+              <option value="Khánh Hòa">Khánh Hòa (Nha Trang)</option>
+              <option value="Bình Dương">Bình Dương</option>
+              <option value="Đồng Nai">Đồng Nai</option>
+            </select>
+          </div>
+
+          {/* University Filter with Quick Search */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Trường Đại Học</span>
+              </label>
+            </div>
+            <input
+              type="text"
+              placeholder="🔍 Tìm tên trường..."
+              value={uniSearch}
+              onChange={(e) => setUniSearch(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] mb-1 focus:bg-white focus:outline-none"
+            />
             <select
               value={universityId}
-              onChange={(e) => setUniversityId(e.target.value)}
+              onChange={(e) => {
+                setUniversityId(e.target.value);
+                applyFilters({ universityId: e.target.value });
+              }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">Tất cả các trường</option>
-              {universities.map(u => (
-                <option key={u.id} value={u.id}>
-                  {u.shortName} - {u.name}
-                </option>
-              ))}
+              {universities
+                .filter(u => 
+                  !uniSearch.trim() || 
+                  u.name.toLowerCase().includes(uniSearch.toLowerCase()) || 
+                  u.shortName.toLowerCase().includes(uniSearch.toLowerCase()) ||
+                  u.city.toLowerCase().includes(uniSearch.toLowerCase())
+                )
+                .map(u => (
+                  <option key={u.id} value={u.id}>
+                    [{u.city}] {u.shortName} - {u.name}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -230,6 +312,7 @@ export default function ProductsPage() {
                 const val = e.target.value;
                 setCategoryId(val);
                 setCategorySlug('');
+                applyFilters({ categoryId: val, categorySlug: '' });
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
@@ -242,14 +325,15 @@ export default function ProductsPage() {
             </select>
           </div>
 
-          {/* District / Khu vực */}
+          {/* District / Khu vực / Điểm hẹn */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700">Khu vực / Quận</label>
+            <label className="text-xs font-bold text-slate-700">Khu vực / Quận / Điểm hẹn</label>
             <input
               type="text"
-              placeholder="Cầu Giấy, Hai Bà Trưng..."
+              placeholder="VD: Cầu Giấy, Bách Khoa, KTX..."
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
