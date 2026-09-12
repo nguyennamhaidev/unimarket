@@ -55,14 +55,34 @@ const optionalAuth = async (req, res, next) => {
 
 const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Truy cập bị từ chối. Chỉ dành cho Quản trị viên (Admin).' });
+    return res.status(403).json({ message: 'Truy cập bị từ chối. Chỉ dành cho Quản trị viên Tối cao (Admin).' });
   }
   next();
+};
+
+const requireQtvOrAdmin = (req, res, next) => {
+  if (!req.user || !['ADMIN', 'QTV'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Truy cập bị từ chối. Chỉ dành cho Quản Trị Viên (QTV) hoặc Admin.' });
+  }
+  next();
+};
+
+const requireRole = (allowedRoles = []) => {
+  return (req, res, next) => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `Truy cập bị từ chối. Quyền yêu cầu: [${allowedRoles.join(', ')}].` 
+      });
+    }
+    next();
+  };
 };
 
 module.exports = {
   authenticate,
   optionalAuth,
   requireAdmin,
+  requireQtvOrAdmin,
+  requireRole,
   JWT_SECRET
 };

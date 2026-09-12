@@ -202,14 +202,26 @@ exports.updateProfile = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
+    const { oldPassword, newPassword, confirmPassword } = req.body;
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ message: 'Vui lòng nhập mật khẩu cũ và mật khẩu mới.' });
+      return res.status(400).json({ message: 'Vui lòng điền mật khẩu hiện tại và mật khẩu mới.' });
+    }
+
+    if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'Mật khẩu mới và Nhập lại mật khẩu mới không trùng khớp.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
     }
 
     const isMatch = await bcrypt.compare(oldPassword, req.user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Mật khẩu cũ không chính xác.' });
+      return res.status(400).json({ message: 'Mật khẩu hiện tại không chính xác.' });
+    }
+
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại.' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -218,10 +230,10 @@ exports.changePassword = async (req, res) => {
       data: { password: hashedPassword }
     });
 
-    res.json({ message: 'Đổi mật khẩu thành công!' });
+    res.json({ message: 'Đổi mật khẩu tài khoản thành công!' });
   } catch (err) {
     console.error('Change password error:', err);
-    res.status(500).json({ message: 'Lỗi khi đổi mật khẩu.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi đổi mật khẩu.' });
   }
 };
 

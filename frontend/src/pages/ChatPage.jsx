@@ -16,16 +16,19 @@ import {
   ExternalLink,
   MessageSquare,
   Sparkles,
+  ArrowLeft,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import api from '../api';
+import ErrorBoundary from '../components/common/ErrorBoundary';
+import { getImageUrl, handleImageError, DEFAULT_AVATAR, DEFAULT_PRODUCT_IMAGE } from '../utils/imageHelper';
 
-export default function ChatPage() {
+function ChatPageContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { socket } = useSocket();
 
   const conversationIdFromUrl = searchParams.get('id');
@@ -47,16 +50,23 @@ export default function ChatPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewedSuccess, setReviewedSuccess] = useState(false);
 
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const isUserScrolledUpRef = useRef(false);
   const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return; // Wait until auth verification completes
+
     if (!isAuthenticated) {
       navigate('/login?redirect=/messages');
       return;
     }
     fetchConversations();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading]);
 
   // Handle active conversation selection
   useEffect(() => {
@@ -71,12 +81,22 @@ export default function ChatPage() {
   useEffect(() => {
     if (!socket || !activeConv) return;
 
-    socket.emit('join_conversation', activeConv.id);
+    const joinRoom = () => {
+      socket.emit('join_conversation', activeConv.id);
+    };
+
+    joinRoom();
+    socket.on('connect', joinRoom);
 
     const handleNewMessage = (msg) => {
       if (msg.conversationId === activeConv.id) {
-        setMessages(prev => [...prev, msg]);
-        scrollToBottom();
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        if (!isUserScrolledUpRef.current) {
+          setTimeout(() => scrollToBottom('smooth'), 50);
+        }
       }
       // Update snippet in conversation list
       setConversations(prev => prev.map(c => {
@@ -98,17 +118,33 @@ export default function ChatPage() {
 
     return () => {
       socket.emit('leave_conversation', activeConv.id);
+      socket.off('connect', joinRoom);
       socket.off('new_message', handleNewMessage);
       socket.off('user_typing', handleUserTyping);
     };
   }, [socket, activeConv]);
 
   useEffect(() => {
-    scrollToBottom();
+    if (!isUserScrolledUpRef.current) {
+      scrollToBottom('auto');
+    }
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior = 'auto') => {
+    if (messagesContainerRef.current) {
+      const el = messagesContainerRef.current;
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior
+      });
+    }
+  };
+
+  const handleMessagesScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const el = messagesContainerRef.current;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isUserScrolledUpRef.current = distanceFromBottom > 100;
   };
 
   const fetchConversations = async () => {
@@ -139,6 +175,9 @@ export default function ChatPage() {
       if (searchParams.get('review') === 'true') {
         setShowReviewModal(true);
       }
+
+      isUserScrolledUpRef.current = false;
+      setTimeout(() => scrollToBottom('auto'), 50);
     } catch (err) {
       console.error('loadConversationMessages error:', err);
     } finally {
@@ -156,7 +195,11 @@ export default function ChatPage() {
         text: textToSend.trim()
       });
 
-      setMessages(prev => [...prev, res.data.message]);
+      const newMsg = res.data.message;
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       setInputText('');
 
       // Notify stop typing
@@ -172,7 +215,8 @@ export default function ChatPage() {
         return c;
       }));
 
-      scrollToBottom();
+      isUserScrolledUpRef.current = false;
+      setTimeout(() => scrollToBottom('smooth'), 50);
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi gửi tin nhắn.');
     }
@@ -188,6 +232,22 @@ export default function ChatPage() {
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('typing', { conversationId: activeConv.id, isTyping: false });
     }, 2000);
+  };
+
+  const isSeller = activeConv?.sellerId === user?.id;
+  const partner = (isSeller ? activeConv?.buyer : activeConv?.seller) || {
+    id: 'user_fallback',
+    fullName: 'Người dùng UniMarket',
+    username: 'user',
+    avatar: null
+  };
+  const product = activeConv?.product || {
+    id: activeConv?.productId || '',
+    title: 'Sản phẩm đã gỡ hoặc không tồn tại',
+    price: 0,
+    isFree: false,
+    status: 'DELETED',
+    images: []
   };
 
   const handleMarkAsSoldToPartner = async () => {
@@ -258,10 +318,6 @@ export default function ChatPage() {
     }
   };
 
-  const isSeller = activeConv?.sellerId === user?.id;
-  const partner = isSeller ? activeConv?.buyer : activeConv?.seller;
-  const product = activeConv?.product;
-
   const formatSocialLink = (type, val) => {
     if (!val) return null;
     if (val.startsWith('http://') || val.startsWith('https://')) return val;
@@ -305,11 +361,20 @@ export default function ChatPage() {
         'Đồ có lỗi lầm hay trầy xước gì không bạn?'
       ];
 
+  if (authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16 text-center space-y-3">
+        <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <div className="text-xs text-slate-500 font-semibold">Đang tải cuộc trò chuyện...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 h-[calc(100vh-5rem)]">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-full flex flex-col md:flex-row">
         
-        {/* Left Column: Conversations List (Spec Section 17) */}
+        {/* Left Column: Conversations List */}
         <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 ${activeConv ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-slate-200 bg-white">
             <h2 className="text-base font-extrabold text-slate-800 flex items-center justify-between">
@@ -336,7 +401,7 @@ export default function ChatPage() {
             ) : (
               conversations.map((conv) => {
                 const isSelected = activeConv?.id === conv.id;
-                const prodImg = conv.product?.images?.[0]?.url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';
+                const partnerAvatar = getImageUrl(conv.partner?.avatar, DEFAULT_AVATAR);
                 return (
                   <button
                     key={conv.id}
@@ -347,9 +412,10 @@ export default function ChatPage() {
                   >
                     <div className="relative shrink-0">
                       <img
-                        src={conv.partner?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${conv.partner?.username}`}
-                        alt={conv.partner?.fullName}
-                        className="w-11 h-11 rounded-2xl object-cover border border-slate-200"
+                        src={partnerAvatar}
+                        alt={conv.partner?.fullName || 'Người dùng'}
+                        onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                        className="w-11 h-11 rounded-2xl object-cover border border-slate-200 bg-emerald-50"
                       />
                       {conv.unreadCount > 0 && (
                         <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
@@ -361,21 +427,21 @@ export default function ChatPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-bold text-xs text-slate-800 truncate">
-                          {conv.partner?.fullName}
+                          {conv.partner?.fullName || 'Người dùng UniMarket'}
                         </span>
                         <span className="text-[10px] text-slate-400 shrink-0">
-                          {new Date(conv.lastMessageAt).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' })}
+                          {new Date(conv.lastMessageAt || Date.now()).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' })}
                         </span>
                       </div>
 
                       {/* Product snippet */}
                       <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold truncate mt-0.5">
-                        <span className="truncate">📦 {conv.product?.title}</span>
+                        <span className="truncate">📦 {conv.product?.title || 'Sản phẩm trao đổi'}</span>
                       </div>
 
                       {/* Last message */}
                       <p className="text-xs text-slate-500 truncate mt-0.5">
-                        {conv.lastMessage?.text || '[Hình ảnh]'}
+                        {conv.lastMessage?.text || (conv.lastMessage?.imageUrl ? '[Hình ảnh]' : 'Bắt đầu cuộc trò chuyện...')}
                       </p>
                     </div>
                   </button>
@@ -385,7 +451,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Right Column: Active Conversation (Spec Section 15 & 16) */}
+        {/* Right Column: Active Conversation */}
         {activeConv ? (
           <div className="flex-1 flex flex-col bg-white h-full overflow-hidden">
             
@@ -398,15 +464,16 @@ export default function ChatPage() {
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <Link to={`/profile/${partner?.id}`} className="relative group flex items-center gap-2.5">
+                <Link to={partner?.id ? `/profile/${partner.id}` : '#'} className="relative group flex items-center gap-2.5">
                   <img
-                    src={partner?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${partner?.username}`}
+                    src={getImageUrl(partner?.avatar, DEFAULT_AVATAR)}
                     alt=""
-                    className="w-10 h-10 rounded-2xl object-cover border border-slate-200 group-hover:opacity-80"
+                    onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                    className="w-10 h-10 rounded-2xl object-cover border border-slate-200 group-hover:opacity-80 bg-emerald-50"
                   />
                   <div>
                     <div className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-emerald-700 flex items-center gap-1.5">
-                      <span>{partner?.fullName}</span>
+                      <span>{partner?.fullName || 'Người dùng'}</span>
                       {partner?.rating && (
                         <span className="flex items-center gap-0.5 text-amber-500 text-[11px] font-bold">
                           <Star className="w-3 h-3 fill-current" />
@@ -418,7 +485,7 @@ export default function ChatPage() {
                       {partnerTyping ? (
                         <span className="text-emerald-600 font-bold animate-pulse">Đang nhập...</span>
                       ) : (
-                        `@${partner?.username} • ${isSeller ? 'Người hỏi mua' : 'Người bán'}`
+                        `@${partner?.username || 'user'} • ${isSeller ? 'Người hỏi mua' : 'Người bán'}`
                       )}
                     </div>
                   </div>
@@ -481,24 +548,30 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Spec Section 16: "Chat phải gắn với sản phẩm" - Product Context Sticky Header Bar */}
+            {/* Product Context Sticky Header Bar */}
             {product && (
               <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <img
-                    src={product.images?.[0]?.url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80'}
+                    src={getImageUrl(product.images?.[0]?.url, DEFAULT_PRODUCT_IMAGE)}
                     alt=""
-                    className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200"
+                    onError={(e) => handleImageError(e, DEFAULT_PRODUCT_IMAGE)}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200 bg-white"
                   />
                   <div className="min-w-0">
-                    <div className="font-bold text-slate-800 truncate">{product.title}</div>
+                    <div className="font-bold text-slate-800 truncate">{product.title || 'Sản phẩm trao đổi'}</div>
                     <div className="flex items-center gap-2 text-[11px]">
                       <span className="font-black text-rose-600">
-                        {product.isFree ? 'Miễn phí 0đ' : new Intl.NumberFormat('vi-VN').format(product.price) + ' đ'}
+                        {product.isFree ? 'Miễn phí 0đ' : new Intl.NumberFormat('vi-VN').format(product.price || 0) + ' đ'}
                       </span>
                       {product.status === 'SOLD' && (
                         <span className="bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">
                           ĐÃ BÁN
+                        </span>
+                      )}
+                      {product.status === 'DELETED' && (
+                        <span className="bg-slate-400 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">
+                          ĐÃ GỠ
                         </span>
                       )}
                     </div>
@@ -506,23 +579,25 @@ export default function ChatPage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Link
-                    to={`/product/${product.id}`}
-                    target="_blank"
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-[11px] flex items-center gap-1 shadow-sm"
-                  >
-                    <span>Xem SP</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
+                  {product.id && product.status !== 'DELETED' && (
+                    <Link
+                      to={`/product/${product.id}`}
+                      target="_blank"
+                      className="px-2.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-[11px] flex items-center gap-1 shadow-sm"
+                    >
+                      <span>Xem SP</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  )}
 
-                  {/* Spec Section 18: [Đánh dấu đã bán] directly inside chat */}
-                  {isSeller && product.status !== 'SOLD' && (
+                  {/* Mark as Sold directly inside chat */}
+                  {isSeller && product.status === 'ACTIVE' && (
                     <button
                       onClick={handleMarkAsSoldToPartner}
                       className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl text-[11px] shadow-sm shadow-emerald-600/30 flex items-center gap-1"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Đánh dấu đã bán cho bạn này</span>
+                      <span>Đánh dấu đã bán</span>
                     </button>
                   )}
 
@@ -541,7 +616,11 @@ export default function ChatPage() {
             )}
 
             {/* Messages Thread */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar bg-slate-50/30">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar bg-slate-50/30"
+            >
               {loadingMessages ? (
                 <div className="text-center py-10 text-xs text-slate-400">Đang tải tin nhắn...</div>
               ) : messages.length === 0 ? (
@@ -556,10 +635,9 @@ export default function ChatPage() {
                 messages.map((msg) => {
                   const isMine = msg.senderId === user?.id;
                   
-                  // Helper to parse URLs inside text and make them clickable
                   const renderMessageBody = (text) => {
                     const urlRegex = /(https?:\/\/[^\s]+)/g;
-                    const parts = text.split(urlRegex);
+                    const parts = (text || '').split(urlRegex);
                     return parts.map((part, idx) => {
                       if (part.match(urlRegex)) {
                         const isFb = part.includes('facebook.com');
@@ -601,7 +679,12 @@ export default function ChatPage() {
                         }`}
                       >
                         {msg.imageUrl && (
-                          <img src={msg.imageUrl} alt="" className="rounded-xl mb-2 max-w-xs object-cover" />
+                          <img 
+                            src={getImageUrl(msg.imageUrl, DEFAULT_PRODUCT_IMAGE)} 
+                            alt="" 
+                            onError={(e) => handleImageError(e, DEFAULT_PRODUCT_IMAGE)}
+                            className="rounded-xl mb-2 max-w-xs object-cover" 
+                          />
                         )}
                         <p className="whitespace-pre-wrap">{renderMessageBody(msg.text)}</p>
                       </div>
@@ -615,11 +698,10 @@ export default function ChatPage() {
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Quick Suggestions Chips & Share Profile Button */}
-            <div className="px-4 py-1.5 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto">
+            <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={handleShareMyProfile}
@@ -679,14 +761,14 @@ export default function ChatPage() {
 
       </div>
 
-      {/* Review Modal (Spec Section 19) */}
+      {/* Review Modal */}
       {showReviewModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-base text-slate-800 flex items-center gap-2">
                 <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                <span>Đánh giá người bán sau giao dịch</span>
+                <span>Đánh giá đối phương sau giao dịch</span>
               </h3>
               <button onClick={() => setShowReviewModal(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -715,19 +797,13 @@ export default function ChatPage() {
                       </button>
                     ))}
                   </div>
-                  <div className="text-xs font-bold text-amber-600">
-                    {reviewRating === 5 && 'Tuyệt vời, bán đúng mô tả, giao dịch nhanh!'}
-                    {reviewRating === 4 && 'Rất tốt, hài lòng với món đồ'}
-                    {reviewRating === 3 && 'Bình thường, tạm ổn'}
-                    {reviewRating <= 2 && 'Chưa hài lòng'}
-                  </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700">Lời nhận xét *</label>
                   <textarea
                     rows={3}
-                    placeholder="Ví dụ: Bạn bán hàng nhiệt tình, sách giải tích nhiều ghi chú ôn thi rất tốt..."
+                    placeholder="Ví dụ: Bạn bán hàng nhiệt tình, đúng mô tả..."
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     required
@@ -759,5 +835,13 @@ export default function ChatPage() {
       )}
 
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <ErrorBoundary>
+      <ChatPageContent />
+    </ErrorBoundary>
   );
 }

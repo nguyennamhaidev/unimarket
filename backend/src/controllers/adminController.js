@@ -494,10 +494,10 @@ exports.createCategory = async (req, res) => {
 exports.toggleUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body; // "ADMIN" or "USER"
+    const { role } = req.body; // "ADMIN", "QTV", "USER"
 
-    if (!role || !['ADMIN', 'USER'].includes(role)) {
-      return res.status(400).json({ message: 'Vai trò không hợp lệ (chỉ chấp nhận ADMIN hoặc USER).' });
+    if (!role || !['ADMIN', 'QTV', 'USER'].includes(role)) {
+      return res.status(400).json({ message: 'Vai trò không hợp lệ (chỉ chấp nhận ADMIN, QTV hoặc USER).' });
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
@@ -505,10 +505,16 @@ exports.toggleUserRole = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy người dùng này.' });
     }
 
+    if (targetUser.id === req.user.id) {
+      return res.status(400).json({ message: 'Bạn không thể tự thay đổi vai trò của chính mình.' });
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: { role }
     });
+
+    const roleName = role === 'ADMIN' ? 'Quản Trị Viên Tối Cao (Admin)' : role === 'QTV' ? 'Kiểm Duyệt Viên (QTV)' : 'Người dùng thường (USER)';
 
     await logAdminAction(
       req.user.id,
@@ -518,12 +524,57 @@ exports.toggleUserRole = async (req, res) => {
       `Admin ${req.user.fullName} đã thay đổi vai trò của @${targetUser.username} thành [${role}].`
     );
 
+    // Notify user
+    await prisma.notification.create({
+      data: {
+        userId: id,
+        title: 'Cập nhật phân quyền tài khoản',
+        content: `Tài khoản của bạn đã được Admin nâng/hạ cấp thành vai trò: ${roleName}.`,
+        type: 'SYSTEM'
+      }
+    }).catch(console.error);
+
     res.json({
-      message: `Đã cập nhật vai trò của @${targetUser.username} thành ${role === 'ADMIN' ? 'Quản trị viên (Admin)' : 'Người dùng (User)'}.`,
+      message: `Đã cập nhật vai trò của @${targetUser.username} thành ${roleName}.`,
       user: updated
     });
   } catch (err) {
     console.error('toggleUserRole error:', err);
     res.status(500).json({ message: 'Lỗi khi phân quyền người dùng.' });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Vi phạm nghiêm trọng chính sách UniMarket' } = req.body;
+
+    if (id === req.user.id) {
+      return res.status(400).json({ message: 'Không thể xóa tài khoản của chính bạn tại đây.' });
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id } });
+    if (!targetUser) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng.' });
+    }
+
+    if (targetUser.role === 'ADMIN') {
+      return res.status(400).json({ message: 'Không thể xóa tài khoản Quản trị viên cấp cao khác.' });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    await logAdminAction(
+      req.user.id,
+      'DELETE_USER',
+      'USER',
+      id,
+      `Admin ${req.user.fullName} đã XÓA VĨNH VIỄN tài khoản @${targetUser.username} (${targetUser.email}). Lý do: ${reason}`
+    );
+
+    res.json({ message: `Đã xóa vĩnh viễn tài khoản @${targetUser.username} thành công.` });
+  } catch (err) {
+    console.error('deleteUser error:', err);
+    res.status(500).json({ message: 'Lỗi khi xóa người dùng.' });
   }
 };

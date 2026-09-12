@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api';
 
 const AuthContext = createContext(null);
@@ -25,8 +25,11 @@ export const AuthProvider = ({ children }) => {
       setUser(res.data.user);
       localStorage.setItem('unimarket_user', JSON.stringify(res.data.user));
     } catch (err) {
-      console.error('Failed to fetch current user', err);
-      logout();
+      console.error('Failed to fetch current user:', err.message);
+      // Only force logout on explicit 401 Unauthorized
+      if (err.response && err.response.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -66,6 +69,10 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const isQtv = user?.role === 'QTV';
+  const isAdmin = user?.role === 'ADMIN';
+  const isStaff = isQtv || isAdmin;
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -77,7 +84,9 @@ export const AuthProvider = ({ children }) => {
       refreshUser,
       updateProfile,
       isAuthenticated: !!user,
-      isAdmin: user?.role === 'ADMIN'
+      isQtv,
+      isAdmin,
+      isStaff
     }}>
       {children}
     </AuthContext.Provider>

@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/common/ProductCard';
 import api from '../api';
+import { getImageUrl, handleImageError, DEFAULT_PRODUCT_IMAGE, DEFAULT_AVATAR } from '../utils/imageHelper';
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -197,9 +198,14 @@ export default function ProductDetailPage() {
     OLD: 'Cũ / Pass nhanh giá rẻ'
   };
 
-  const images = product.images && product.images.length > 0
+  const rawImages = product.images && product.images.length > 0
     ? product.images
-    : [{ url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80' }];
+    : [{ url: DEFAULT_PRODUCT_IMAGE }];
+
+  const images = rawImages.map(img => ({
+    ...img,
+    url: getImageUrl(img.url, DEFAULT_PRODUCT_IMAGE)
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -209,7 +215,7 @@ export default function ProductDetailPage() {
         <Link to="/" className="hover:text-emerald-600">Trang chủ</Link>
         <span>/</span>
         <Link to={`/products?categorySlug=${product.category?.slug}`} className="hover:text-emerald-600">
-          {product.category?.name}
+          {product.category?.name || 'Sản phẩm'}
         </Link>
         <span>/</span>
         <span className="text-slate-800 font-semibold truncate max-w-xs">{product.title}</span>
@@ -222,8 +228,9 @@ export default function ProductDetailPage() {
         <div className="lg:col-span-7 space-y-4">
           <div className="relative aspect-[4/3] bg-slate-100 rounded-3xl overflow-hidden border border-slate-200">
             <img
-              src={images[activeImageIndex]?.url}
+              src={images[activeImageIndex]?.url || DEFAULT_PRODUCT_IMAGE}
               alt={product.title}
+              onError={(e) => handleImageError(e, DEFAULT_PRODUCT_IMAGE)}
               className="w-full h-full object-contain bg-slate-900/5"
             />
             {product.status === 'SOLD' && (
@@ -246,7 +253,12 @@ export default function ProductDetailPage() {
                     activeImageIndex === idx ? 'border-emerald-600 scale-105' : 'border-slate-200 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={img.url}
+                    alt=""
+                    onError={(e) => handleImageError(e, DEFAULT_PRODUCT_IMAGE)}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -386,8 +398,9 @@ export default function ProductDetailPage() {
               <div className="flex items-center justify-between">
                 <Link to={`/profile/${product.seller.id}`} className="flex items-center gap-3 group">
                   <img
-                    src={product.seller.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${product.seller.username}`}
+                    src={getImageUrl(product.seller.avatar, DEFAULT_AVATAR)}
                     alt={product.seller.fullName}
+                    onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                     className="w-12 h-12 rounded-2xl object-cover bg-emerald-50 border border-emerald-100 group-hover:scale-105 transition-transform"
                   />
                   <div>
@@ -587,8 +600,9 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-2.5">
                 <Link to={`/profile/${product.seller?.id}`} className="hover:opacity-80 transition-opacity">
                   <img
-                    src={product.seller?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${product.seller?.username}`}
+                    src={getImageUrl(product.seller?.avatar, DEFAULT_AVATAR)}
                     alt=""
+                    onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                     className="w-9 h-9 rounded-xl object-cover border border-slate-200"
                   />
                 </Link>

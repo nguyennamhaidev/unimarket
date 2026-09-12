@@ -14,6 +14,8 @@ import {
   Search
 } from 'lucide-react';
 import ProductCard from '../components/common/ProductCard';
+import FeaturedShopsCarousel from '../components/home/FeaturedShopsCarousel';
+import FeaturedProductsCarousel from '../components/home/FeaturedProductsCarousel';
 import api from '../api';
 
 export default function HomePage() {
@@ -118,8 +120,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         
+        {/* SECTION 1: GIAN HÀNG NỔI BẬT (15 SLOTS CAROUSEL) */}
+        <FeaturedShopsCarousel />
+
+        {/* SECTION 2: SẢN PHẨM NỔI BẬT (20 SLOTS CAROUSEL) */}
+        <FeaturedProductsCarousel />
+
         {/* Categories Grid */}
         <section>
           <div className="flex items-center justify-between mb-5">

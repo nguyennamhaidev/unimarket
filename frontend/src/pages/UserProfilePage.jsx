@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/common/ProductCard';
+import { getImageUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageHelper';
 import api from '../api';
 
 export default function UserProfilePage() {
@@ -49,7 +50,9 @@ export default function UserProfilePage() {
   // Change password state
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -118,12 +121,37 @@ export default function UserProfilePage() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+    setPasswordMsg('');
+    setPasswordSuccess(false);
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordMsg('Vui lòng điền đầy đủ 3 trường mật khẩu.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordMsg('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg('Mật khẩu mới và Nhập lại mật khẩu mới không khớp.');
+      return;
+    }
+
     try {
-      const res = await api.put('/auth/change-password', { oldPassword, newPassword });
-      setPasswordMsg(res.data.message);
+      const res = await api.put('/auth/change-password', {
+        oldPassword,
+        newPassword,
+        confirmPassword
+      });
+      setPasswordMsg(res.data.message || 'Đổi mật khẩu thành công!');
+      setPasswordSuccess(true);
       setOldPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
+      setPasswordSuccess(false);
       setPasswordMsg(err.response?.data?.message || 'Lỗi khi đổi mật khẩu.');
     }
   };
@@ -170,8 +198,9 @@ export default function UserProfilePage() {
           
           <div className="flex items-start gap-4 sm:gap-6">
             <img
-              src={user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.username}`}
+              src={getImageUrl(user.avatar, DEFAULT_AVATAR)}
               alt={user.fullName}
+              onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover bg-emerald-50 border-2 border-emerald-100 shadow-md shadow-emerald-600/10"
             />
             
@@ -406,8 +435,9 @@ export default function UserProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <img
-                      src={r.reviewer?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${r.reviewer?.username}`}
+                      src={getImageUrl(r.reviewer?.avatar, DEFAULT_AVATAR)}
                       alt=""
+                      onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                       className="w-8 h-8 rounded-xl object-cover bg-emerald-50"
                     />
                     <div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Package, PlusCircle, CheckCircle2, EyeOff, Eye, Trash2, Edit3, Heart, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl, handleImageError } from '../utils/imageHelper';
 import api from '../api';
 
 export default function MyProductsPage() {
@@ -123,8 +124,9 @@ export default function MyProductsPage() {
             <div key={p.id} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5 min-w-0">
                 <img
-                  src={p.images?.[0]?.url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80'}
-                  alt=""
+                  src={getImageUrl(p.images?.[0]?.url || p.images?.[0])}
+                  onError={handleImageError}
+                  alt={p.title || 'Sản phẩm'}
                   className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0"
                 />
                 <div className="min-w-0">

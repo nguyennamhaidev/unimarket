@@ -14,29 +14,49 @@ const reportRoutes = require('./routes/reports');
 const catUniRoutes = require('./routes/categories');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
+const featuredRoutes = require('./routes/featured');
 
 const app = express();
 const server = http.createServer(app);
 
-// Setup Socket.IO
+// Danh sách các domain được phép kết nối
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://unimarket-frontend.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+].filter(Boolean);
+
+// Setup Socket.IO với CORS chuẩn
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
 app.set('io', io);
 
-// Middleware
-app.use(cors());
+// Middleware CORS cho phép Frontend gọi API
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Cho phép truy cập linh hoạt để tránh chặn API
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Static uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
+// Routes API
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
@@ -46,6 +66,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api', catUniRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/featured', featuredRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'UniMarket API', timestamp: new Date() });
@@ -55,14 +76,12 @@ app.get('/api/health', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
-  // Join user's personal channel for notifications
   socket.on('join_user_channel', (userId) => {
     if (userId) {
       socket.join(`user_${userId}`);
     }
   });
 
-  // Join active conversation room
   socket.on('join_conversation', (conversationId) => {
     if (conversationId) {
       socket.join(`conversation_${conversationId}`);
@@ -75,7 +94,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Typing indicator
   socket.on('typing', ({ conversationId, userName, isTyping }) => {
     socket.to(`conversation_${conversationId}`).emit('user_typing', {
       conversationId,
