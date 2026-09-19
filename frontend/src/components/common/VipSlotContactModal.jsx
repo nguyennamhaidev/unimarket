@@ -22,10 +22,17 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
   const [loading, setLoading] = useState(true);
   const [selectedStaffType, setSelectedStaffType] = useState('admin'); // 'admin' | 'ctv'
   const [connectingId, setConnectingId] = useState(null);
+  const [systemSettings, setSystemSettings] = useState({
+    zaloContact: 'https://zalo.me/0987654321',
+    telegramContact: 'https://t.me/unimarket_support'
+  });
 
   useEffect(() => {
     if (isOpen) {
       fetchStaff();
+      api.get('/settings').then(res => {
+        if (res.data?.settings) setSystemSettings(res.data.settings);
+      }).catch(console.error);
     }
   }, [isOpen]);
 
@@ -214,14 +221,14 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
             })
           )}
 
-          {/* Quick Zalo & Hotline section */}
+          {/* Quick Zalo & Telegram section */}
           <div className="pt-3 border-t border-slate-100">
             <div className="text-[11px] font-bold text-slate-700 mb-2">
               Hoặc liên hệ nhanh qua mạng xã hội:
             </div>
             <div className="grid grid-cols-2 gap-2">
               <a
-                href="https://zalo.me"
+                href={systemSettings.zaloContact?.startsWith('http') ? systemSettings.zaloContact : `https://zalo.me/${systemSettings.zaloContact || '0987654321'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-1.5 border border-blue-200 transition-colors"
@@ -230,11 +237,13 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
                 <span>Zalo Hỗ Trợ 24/7</span>
               </a>
               <a
-                href="tel:0987654321"
-                className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors"
+                href={systemSettings.telegramContact?.startsWith('http') ? systemSettings.telegramContact : `https://t.me/${(systemSettings.telegramContact || 'unimarket_support').replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center gap-1.5 border border-sky-200 transition-colors"
               >
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Hotline Duyệt VIP</span>
+                <span className="text-sm">✈️</span>
+                <span>Telegram Duyệt VIP</span>
               </a>
             </div>
           </div>

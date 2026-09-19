@@ -679,114 +679,16 @@ exports.getMyFavorites = async (req, res) => {
   }
 };
 
-// Fallback student products if database has few products yet
-const FALLBACK_STUDENT_PRODUCTS = [
-  {
-    id: 'demo-p1',
-    title: 'Giáo trình Triết học Mác - Lênin & Kinh tế Chính trị (Full bộ K66)',
-    description: 'Sách mới 98%, đã highlight các phần trọng tâm ôn thi qua môn',
-    price: 35000,
-    isFree: false,
-    condition: 'LIKE_NEW',
-    status: 'ACTIVE',
-    district: 'Hai Bà Trưng',
-    images: [{ url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Nguyễn Văn Minh', username: 'minh_hust', rating: 4.9, totalSold: 12 },
-    university: { shortName: 'Bách Khoa', name: 'ĐH Bách Khoa Hà Nội' },
-    category: { name: 'Giáo trình & Sách' }
-  },
-  {
-    id: 'demo-p2',
-    title: 'Máy tính cầm tay Casio FX-580VNX chính hãng Bitex còn tem',
-    description: 'Dùng tốt cho môn Giải tích và Đại số, phím nảy nhạy, còn pin zin',
-    price: 380000,
-    isFree: false,
-    condition: 'LIKE_NEW',
-    status: 'ACTIVE',
-    district: 'Cầu Giấy',
-    images: [{ url: 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Trần Thu Trang', username: 'trang_neu', rating: 5.0, totalSold: 28 },
-    university: { shortName: 'NEU', name: 'ĐH Kinh Tế Quốc Dân' },
-    category: { name: 'Đồ điện tử & Phụ kiện' }
-  },
-  {
-    id: 'demo-p3',
-    title: 'Bàn học gấp gọn sinh viên có khe để iPad/điện thoại và cốc nước',
-    description: 'Bàn chân sắt chịu lực tốt, mặt gỗ ép chống xước, tiện dùng trên giường KTX',
-    price: 65000,
-    isFree: false,
-    condition: 'GOOD',
-    status: 'ACTIVE',
-    district: 'Đống Đa',
-    images: [{ url: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Lê Hoàng Nam', username: 'nam_ftu', rating: 4.8, totalSold: 9 },
-    university: { shortName: 'FTU', name: 'ĐH Ngoại Thương' },
-    category: { name: 'Đồ dùng phòng trọ' }
-  },
-  {
-    id: 'demo-p4',
-    title: 'Đèn học chống cận Rạng Đông 5W ánh sáng vàng bảo vệ mắt',
-    description: 'Đèn dùng tốt, tiết kiệm điện, có kèm củ sạc và dây cắm',
-    price: 80000,
-    isFree: false,
-    condition: 'GOOD',
-    status: 'ACTIVE',
-    district: 'Thanh Xuân',
-    images: [{ url: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Đặng Mai Phương', username: 'phuong_hnu', rating: 4.9, totalSold: 15 },
-    university: { shortName: 'ĐHQG', name: 'ĐH Quốc Gia Hà Nội' },
-    category: { name: 'Đồ gia dụng' }
-  },
-  {
-    id: 'demo-p5',
-    title: 'Nồi cơm điện mini 1.2L đa năng nấu cơm, nấu lẩu, luộc trứng',
-    description: 'Nồi còn rất mới do chuyển về ở với gia đình nên pass lại giá sinh viên',
-    price: 150000,
-    isFree: false,
-    condition: 'LIKE_NEW',
-    status: 'ACTIVE',
-    district: 'Cầu Giấy',
-    images: [{ url: 'https://images.unsplash.com/photo-1544233726-9f1d2b27be8b?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Vũ Đức Thịnh', username: 'thinh_ictu', rating: 5.0, totalSold: 21 },
-    university: { shortName: 'Bưu Chính', name: 'Học Viện PTIT' },
-    category: { name: 'Đồ gia dụng' }
-  },
-  {
-    id: 'demo-p6',
-    title: 'Áo khoác đồng phục thể chất Bách Khoa size L còn mới tinh',
-    description: 'Mặc đúng 2 buổi thi kết thúc môn, không sờn rách, vải gió 2 lớp ấm',
-    price: 90000,
-    isFree: false,
-    condition: 'LIKE_NEW',
-    status: 'ACTIVE',
-    district: 'Hai Bà Trưng',
-    images: [{ url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80' }],
-    seller: { fullName: 'Bùi Đức Anh', username: 'ducanh_k65', rating: 4.7, totalSold: 6 },
-    university: { shortName: 'Bách Khoa', name: 'ĐH Bách Khoa Hà Nội' },
-    category: { name: 'Thời trang sinh viên' }
-  }
-];
-
-// Gợi ý sản phẩm ngẫu nhiên: 30% ưu tiên từ các gian hàng uy tín/nhiều đơn bán và 70% từ các sản phẩm sinh viên khác
+// Gợi ý sản phẩm ngẫu nhiên bốc từ cơ sở dữ liệu thực tế (Không dùng sản phẩm ảo/mock)
+// Nếu có ít sản phẩm (ví dụ 1-5 sản phẩm) thì hiển thị đúng bấy nhiêu sản phẩm thực tế
+// Nếu có nhiều sản phẩm hơn limit thì bốc ngẫu nhiên (ưu tiên 30% từ shop có uy tín/đơn bán)
 exports.getRecommendedProducts = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 12;
-    const topShopCount = Math.max(1, Math.round(limit * 0.3)); // 30%
-    const standardCount = limit - topShopCount; // 70%
 
-    // 1. Lấy pool sản phẩm từ các shop uy tín (đã bán > 0, rating cao hoặc QTV/ADMIN)
-    const topSellerProducts = await prisma.product.findMany({
-      where: {
-        status: 'ACTIVE',
-        seller: {
-          OR: [
-            { totalSold: { gt: 0 } },
-            { rating: { gte: 4.5 } },
-            { role: { in: ['QTV', 'ADMIN'] } }
-          ]
-        }
-      },
-      take: 40,
+    // Lấy tất cả sản phẩm đang ACTIVE trong database
+    const allActiveProducts = await prisma.product.findMany({
+      where: { status: 'ACTIVE' },
       include: {
         images: { orderBy: [{ isPrimary: 'desc' }, { order: 'asc' }] },
         category: true,
@@ -799,39 +701,15 @@ exports.getRecommendedProducts = async (req, res) => {
             avatar: true,
             rating: true,
             totalSold: true,
-            university: true
+            university: true,
+            role: true
           }
         },
         _count: { select: { favorites: true } }
       }
     });
 
-    // 2. Lấy pool các sản phẩm active khác
-    const otherProducts = await prisma.product.findMany({
-      where: {
-        status: 'ACTIVE'
-      },
-      take: 60,
-      include: {
-        images: { orderBy: [{ isPrimary: 'desc' }, { order: 'asc' }] },
-        category: true,
-        university: true,
-        seller: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            avatar: true,
-            rating: true,
-            totalSold: true,
-            university: true
-          }
-        },
-        _count: { select: { favorites: true } }
-      }
-    });
-
-    // Fisher-Yates shuffle
+    // Fisher-Yates shuffle algorithm
     const shuffle = (array) => {
       const arr = [...array];
       for (let i = arr.length - 1; i > 0; i--) {
@@ -841,47 +719,55 @@ exports.getRecommendedProducts = async (req, res) => {
       return arr;
     };
 
-    // Chọn ngẫu nhiên 30% từ top seller
-    const shuffledTop = shuffle(topSellerProducts);
-    const selectedTop = shuffledTop.slice(0, topShopCount);
-    const selectedTopIds = new Set(selectedTop.map(p => p.id));
+    let selectedProducts = [];
 
-    // Lọc và chọn 70% còn lại từ các sản phẩm khác
-    const remainingOther = otherProducts.filter(p => !selectedTopIds.has(p.id));
-    const shuffledOther = shuffle(remainingOther);
-    const selectedOther = shuffledOther.slice(0, standardCount);
+    // Nếu tổng số sản phẩm ít hơn hoặc bằng limit, trả về toàn bộ sản phẩm thực tế đã xáo trộn
+    if (allActiveProducts.length <= limit) {
+      selectedProducts = shuffle(allActiveProducts);
+    } else {
+      // Khi số lượng sản phẩm > limit:
+      // Phân loại: 30% từ gian hàng uy tín (đã bán đơn > 0, rating >= 4.5, hoặc QTV/Admin)
+      const topShopPool = allActiveProducts.filter(p => 
+        (p.seller?.totalSold && p.seller.totalSold > 0) || 
+        (p.seller?.rating && p.seller.rating >= 4.5) ||
+        (p.seller?.role && ['ADMIN', 'CTV', 'QTV'].includes(p.seller.role))
+      );
 
-    // Trộn ngẫu nhiên kết quả
-    let finalRecommended = shuffle([...selectedTop, ...selectedOther]);
+      const topTargetCount = Math.min(topShopPool.length, Math.max(1, Math.round(limit * 0.3)));
+      const shuffledTop = shuffle(topShopPool);
+      const chosenTop = shuffledTop.slice(0, topTargetCount);
+      const chosenTopIds = new Set(chosenTop.map(p => p.id));
 
-    // Nếu ít hơn limit (khi mới có ít sản phẩm), bổ sung nốt từ các sản phẩm active
-    if (finalRecommended.length < limit && otherProducts.length > 0) {
-      const existingIds = new Set(finalRecommended.map(p => p.id));
-      for (const p of shuffle(otherProducts)) {
-        if (!existingIds.has(p.id)) {
-          finalRecommended.push(p);
-          existingIds.add(p.id);
-          if (finalRecommended.length >= limit) break;
-        }
-      }
+      const otherPool = allActiveProducts.filter(p => !chosenTopIds.has(p.id));
+      const shuffledOther = shuffle(otherPool);
+      const remainingNeeded = limit - chosenTop.length;
+      const chosenOther = shuffledOther.slice(0, remainingNeeded);
+
+      selectedProducts = shuffle([...chosenTop, ...chosenOther]);
     }
 
-    // Nếu hệ thống đang có rất ít sản phẩm (ví dụ 0-3 sản phẩm), bổ sung thêm mẫu sản phẩm sinh viên để giao diện luôn đầy đủ
-    if (finalRecommended.length < 6) {
-      const existingIds = new Set(finalRecommended.map(p => p.id));
-      for (const sample of shuffle(FALLBACK_STUDENT_PRODUCTS)) {
-        if (!existingIds.has(sample.id)) {
-          finalRecommended.push(sample);
-          existingIds.add(sample.id);
-          if (finalRecommended.length >= limit) break;
-        }
-      }
+    // Kiểm tra trạng thái yêu thích nếu user đã đăng nhập
+    let favoritedProductIds = new Set();
+    if (req.user) {
+      const myFavs = await prisma.favorite.findMany({
+        where: {
+          userId: req.user.id,
+          productId: { in: selectedProducts.map(p => p.id) }
+        },
+        select: { productId: true }
+      });
+      favoritedProductIds = new Set(myFavs.map(f => f.productId));
     }
+
+    const formattedProducts = selectedProducts.map(p => ({
+      ...p,
+      isFavorited: favoritedProductIds.has(p.id)
+    }));
 
     res.json({
       success: true,
-      count: finalRecommended.length,
-      products: finalRecommended
+      count: formattedProducts.length,
+      products: formattedProducts
     });
   } catch (err) {
     console.error('getRecommendedProducts error:', err);

@@ -86,6 +86,14 @@ export default function AdminDashboardPage() {
   const [newCatSlug, setNewCatSlug] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('📦');
 
+  // System Settings state
+  const [systemSettings, setSystemSettings] = useState({
+    zaloContact: 'https://zalo.me/0987654321',
+    telegramContact: 'https://t.me/unimarket_support'
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSuccessMsg, setSettingsSuccessMsg] = useState('');
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login?redirect=/admin');
@@ -103,6 +111,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (activeTab === 'overview' && isAdmin) loadDashboardStats();
+    else if (activeTab === 'settings' && isAdmin) loadSystemSettings();
     else if (activeTab === 'users' && isAdmin) loadUsers();
     else if (activeTab === 'products' && isAdmin) loadProducts();
     else if (activeTab === 'reports' && isAdmin) loadReports();
@@ -463,6 +472,35 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const loadSystemSettings = async () => {
+    try {
+      const res = await api.get('/admin/settings');
+      if (res.data?.settings) {
+        setSystemSettings(prev => ({ ...prev, ...res.data.settings }));
+      }
+    } catch (err) {
+      console.error('loadSystemSettings error:', err);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setSettingsSuccessMsg('');
+    try {
+      const res = await api.put('/admin/settings', {
+        zaloContact: systemSettings.zaloContact,
+        telegramContact: systemSettings.telegramContact
+      });
+      setSettingsSuccessMsg(res.data.message || 'Đã lưu cấu hình liên hệ thành công!');
+      setTimeout(() => setSettingsSuccessMsg(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi lưu cấu hình.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   // Build Tab List dynamically
   const tabs = [
     { id: 'featured_products', label: '🔥 Sản phẩm nổi bật (20 Slot)' },
@@ -470,6 +508,7 @@ export default function AdminDashboardPage() {
     { id: 'featured_logs', label: '📜 Lịch sử Featured' },
     ...(isAdmin ? [
       { id: 'overview', label: '📊 Tổng quan hệ thống' },
+      { id: 'settings', label: '⚙️ Cấu Hình Zalo & Telegram' },
       { id: 'users', label: '👥 Người dùng & Phân quyền' },
       { id: 'products', label: '📦 Quản lý Tất cả Sản Phẩm' },
       { id: 'reports', label: `🚩 Xử lý Báo Cáo (${stats?.stats?.pendingReports || 0})` },
@@ -1529,7 +1568,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Tab 6: Admin Audit Logs (Spec Section 54) */}
+      {/* Tab: Admin Audit Logs */}
       {activeTab === 'logs' && (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
           <h3 className="font-bold text-sm text-slate-900">Nhật ký Audit Trail</h3>
@@ -1550,6 +1589,112 @@ export default function AdminDashboardPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Tab: System Settings (Zalo & Telegram Support) */}
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm max-w-3xl">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-5">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xl shadow-inner">
+              ⚙️
+            </div>
+            <div>
+              <h3 className="font-black text-lg text-slate-900">Cấu Hình Kênh Liên Hệ Khẩn Cấp (Zalo &amp; Telegram)</h3>
+              <p className="text-xs text-slate-500">
+                Thay thế hotline truyền thống bằng link Zalo và Telegram hiển thị trên nút Support 🎧 và modal Đăng Ký Slot VIP.
+              </p>
+            </div>
+          </div>
+
+          {settingsSuccessMsg && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{settingsSuccessMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveSettings} className="space-y-5">
+            {/* Zalo Setting */}
+            <div className="space-y-1.5 bg-blue-50/50 border border-blue-100 p-4 rounded-2xl">
+              <label className="font-extrabold text-xs text-blue-900 flex items-center gap-2">
+                <span className="w-5 h-5 bg-blue-600 text-white rounded flex items-center justify-center text-[10px] font-black">Z</span>
+                <span>Link hoặc Số Điện Thoại Zalo Hỗ Trợ:</span>
+              </label>
+              <input
+                type="text"
+                value={systemSettings.zaloContact || ''}
+                onChange={(e) => setSystemSettings(prev => ({ ...prev, zaloContact: e.target.value }))}
+                placeholder="Ví dụ: https://zalo.me/0987654321 hoặc 0987654321"
+                className="w-full bg-white border border-blue-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+              <p className="text-[11px] text-slate-500">
+                Khách bấm vào nút Zalo trên giao diện sẽ tự động mở cuộc trò chuyện Zalo với Admin / Shop.
+              </p>
+            </div>
+
+            {/* Telegram Setting */}
+            <div className="space-y-1.5 bg-sky-50/50 border border-sky-100 p-4 rounded-2xl">
+              <label className="font-extrabold text-xs text-sky-900 flex items-center gap-2">
+                <span className="text-base">✈️</span>
+                <span>Link hoặc Username Telegram Hỗ Trợ:</span>
+              </label>
+              <input
+                type="text"
+                value={systemSettings.telegramContact || ''}
+                onChange={(e) => setSystemSettings(prev => ({ ...prev, telegramContact: e.target.value }))}
+                placeholder="Ví dụ: https://t.me/unimarket_support hoặc @unimarket_support"
+                className="w-full bg-white border border-sky-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-sky-400"
+                required
+              />
+              <p className="text-[11px] text-slate-500">
+                Khách bấm vào nút Telegram sẽ kết nối trực tiếp đến kênh / chat Telegram hỗ trợ.
+              </p>
+            </div>
+
+            {/* Live Preview */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider block">
+                Xem trước nút hiển thị ngoài trang người dùng:
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <a
+                  href={systemSettings.zaloContact?.startsWith('http') ? systemSettings.zaloContact : `https://zalo.me/${systemSettings.zaloContact || '0987654321'}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-1.5 border border-blue-200 text-xs"
+                >
+                  <span className="w-4 h-4 bg-blue-600 text-white rounded text-[10px] font-black flex items-center justify-center">Z</span>
+                  <span>Zalo Hỗ Trợ 24/7</span>
+                </a>
+                <a
+                  href={systemSettings.telegramContact?.startsWith('http') ? systemSettings.telegramContact : `https://t.me/${(systemSettings.telegramContact || 'unimarket_support').replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2.5 bg-sky-50 text-sky-700 font-bold rounded-xl flex items-center justify-center gap-1.5 border border-sky-200 text-xs"
+                >
+                  <span className="text-sm">✈️</span>
+                  <span>Telegram Hỗ Trợ</span>
+                </a>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingSettings}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs rounded-2xl transition-all shadow-md shadow-slate-900/20 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+            >
+              {savingSettings ? (
+                <span>Đang lưu cấu hình...</span>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>LƯU CẤU HÌNH LIÊN HỆ HỆ THỐNG</span>
+                </>
+              )}
+            </button>
+          </form>
         </div>
       )}
 

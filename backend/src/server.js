@@ -15,6 +15,7 @@ const catUniRoutes = require('./routes/categories');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const featuredRoutes = require('./routes/featured');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,7 @@ app.use('/api', catUniRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/featured', featuredRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'UniMarket API', timestamp: new Date() });

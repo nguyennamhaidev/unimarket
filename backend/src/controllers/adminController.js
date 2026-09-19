@@ -536,3 +536,66 @@ exports.toggleUserRole = async (req, res) => {
     res.status(500).json({ message: 'Lỗi khi phân quyền người dùng.' });
   }
 };
+
+exports.getSystemSettings = async (req, res) => {
+  try {
+    const settings = await prisma.systemSetting.findMany();
+    const settingsMap = {
+      zaloContact: 'https://zalo.me/0987654321',
+      telegramContact: 'https://t.me/unimarket_support'
+    };
+    settings.forEach(s => {
+      settingsMap[s.key] = s.value;
+    });
+    res.json({ success: true, settings: settingsMap });
+  } catch (err) {
+    console.error('getSystemSettings error:', err);
+    res.status(500).json({ message: 'Lỗi khi tải cấu hình hệ thống.' });
+  }
+};
+
+exports.updateSystemSettings = async (req, res) => {
+  try {
+    const { zaloContact, telegramContact } = req.body;
+
+    if (zaloContact !== undefined) {
+      await prisma.systemSetting.upsert({
+        where: { key: 'zaloContact' },
+        update: { value: String(zaloContact).trim() },
+        create: { key: 'zaloContact', value: String(zaloContact).trim(), label: 'Zalo Hỗ Trợ' }
+      });
+    }
+
+    if (telegramContact !== undefined) {
+      await prisma.systemSetting.upsert({
+        where: { key: 'telegramContact' },
+        update: { value: String(telegramContact).trim() },
+        create: { key: 'telegramContact', value: String(telegramContact).trim(), label: 'Telegram Hỗ Trợ' }
+      });
+    }
+
+    await logAdminAction(
+      req.user.id,
+      'UPDATE_SETTINGS',
+      'SYSTEM',
+      'CONTACT_SETTINGS',
+      `Admin ${req.user.fullName} đã cập nhật cấu hình liên hệ: Zalo (${zaloContact}), Telegram (${telegramContact})`
+    );
+
+    const updated = await prisma.systemSetting.findMany();
+    const settingsMap = {
+      zaloContact: 'https://zalo.me/0987654321',
+      telegramContact: 'https://t.me/unimarket_support'
+    };
+    updated.forEach(s => { settingsMap[s.key] = s.value; });
+
+    res.json({
+      success: true,
+      message: 'Đã cập nhật cấu hình hệ thống thành công!',
+      settings: settingsMap
+    });
+  } catch (err) {
+    console.error('updateSystemSettings error:', err);
+    res.status(500).json({ message: 'Lỗi khi cập nhật cấu hình hệ thống.' });
+  }
+};

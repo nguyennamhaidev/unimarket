@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Sparkles, 
   Flame, 
@@ -87,10 +87,9 @@ function build20ShopSlots(shops) {
 }
 
 // -------------------------------------------------------------
-// Component: Featured Products Carousel (20 Slots, Smooth Continuous Gliding, Pause on Hover)
+// Component: Featured Products Carousel (20 Slots, Smooth Continuous Gliding Non-stop)
 // -------------------------------------------------------------
 function FeaturedProductsCarousel({ products = [] }) {
-  const [isHovered, setIsHovered] = useState(false);
   const [vipModalOpen, setVipModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(1);
   const scrollContainerRef = useRef(null);
@@ -101,10 +100,8 @@ function FeaturedProductsCarousel({ products = [] }) {
   // Duplicate slots to create seamless infinite loop
   const displaySlots = [...allSlots, ...allSlots];
 
-  // Smooth continuous auto-glide
+  // Smooth continuous auto-glide (runs non-stop at steady speed)
   useEffect(() => {
-    if (isHovered) return;
-
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -112,7 +109,7 @@ function FeaturedProductsCarousel({ products = [] }) {
     const speed = 0.85; // Balanced steady glide speed
 
     const glide = () => {
-      if (!isHovered && container) {
+      if (container) {
         container.scrollLeft += speed;
         if (container.scrollLeft >= container.scrollWidth / 2) {
           container.scrollLeft = 0;
@@ -125,7 +122,7 @@ function FeaturedProductsCarousel({ products = [] }) {
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [isHovered]);
+  }, []);
 
   const handleManualScroll = (direction) => {
     if (scrollContainerRef.current) {
@@ -142,10 +139,6 @@ function FeaturedProductsCarousel({ products = [] }) {
   return (
     <section 
       className="relative bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-amber-500/20 shadow-sm overflow-hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={() => setIsHovered(true)}
-      onTouchEnd={() => setIsHovered(false)}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="space-y-0.5">
@@ -159,7 +152,7 @@ function FeaturedProductsCarousel({ products = [] }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Tự động luân chuyển liên tục toàn bộ 20 Slot ({activeCount}/20 Đã đăng ký • Rê chuột để dừng xem)
+            Tự động luân chuyển liên tục toàn bộ 20 Slot ({activeCount}/20 Đã đăng ký • Bấm để xem hoặc đăng ký ghim top)
           </p>
         </div>
 
@@ -315,10 +308,9 @@ function FeaturedProductsCarousel({ products = [] }) {
 }
 
 // -------------------------------------------------------------
-// Component: Featured Shops Carousel (20 Slots, Smooth Continuous Gliding, Pause on Hover)
+// Component: Featured Shops Carousel (20 Slots, Smooth Continuous Gliding Non-stop)
 // -------------------------------------------------------------
 function FeaturedShopsCarousel({ shops = [] }) {
-  const [isHovered, setIsHovered] = useState(false);
   const [vipModalOpen, setVipModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(1);
   const scrollContainerRef = useRef(null);
@@ -329,10 +321,8 @@ function FeaturedShopsCarousel({ shops = [] }) {
   // Duplicate slots to create seamless infinite loop
   const displaySlots = [...allSlots, ...allSlots];
 
-  // Smooth continuous auto-glide
+  // Smooth continuous auto-glide (runs non-stop at steady speed)
   useEffect(() => {
-    if (isHovered) return;
-
     const container = scrollContainerRef.current;
     if (!container) return;
 
@@ -340,7 +330,7 @@ function FeaturedShopsCarousel({ shops = [] }) {
     const speed = 0.85; // Balanced steady glide speed
 
     const glide = () => {
-      if (!isHovered && container) {
+      if (container) {
         container.scrollLeft += speed;
         if (container.scrollLeft >= container.scrollWidth / 2) {
           container.scrollLeft = 0;
@@ -353,7 +343,7 @@ function FeaturedShopsCarousel({ shops = [] }) {
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [isHovered]);
+  }, []);
 
   const handleManualScroll = (direction) => {
     if (scrollContainerRef.current) {
@@ -370,10 +360,6 @@ function FeaturedShopsCarousel({ shops = [] }) {
   return (
     <section 
       className="relative bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-indigo-500/20 shadow-sm overflow-hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={() => setIsHovered(true)}
-      onTouchEnd={() => setIsHovered(false)}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="space-y-0.5">
@@ -387,7 +373,7 @@ function FeaturedShopsCarousel({ shops = [] }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Tự động luân chuyển liên tục toàn bộ 20 Gian hàng ({activeCount}/20 Đã chứng thực • Rê chuột để dừng xem)
+            Tự động luân chuyển liên tục toàn bộ 20 Gian hàng ({activeCount}/20 Đã chứng thực • Bấm để xem shop hoặc đăng ký)
           </p>
         </div>
 
@@ -536,6 +522,7 @@ function FeaturedShopsCarousel({ shops = [] }) {
 // -------------------------------------------------------------
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [categories, setCategories] = useState([]);
   const [universities, setUniversities] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -550,7 +537,8 @@ export default function HomePage() {
   const fetchRecommendations = async () => {
     setLoadingRecommended(true);
     try {
-      const res = await api.get('/products/recommended?limit=12');
+      // Bốc ngẫu nhiên trực tiếp từ database, đổi mới mỗi lần gọi
+      const res = await api.get(`/products/recommended?limit=12&_t=${Date.now()}`);
       setRecommendedProducts(res.data.products || []);
     } catch (err) {
       console.error('Fetch recommendations error:', err);
@@ -558,6 +546,11 @@ export default function HomePage() {
       setLoadingRecommended(false);
     }
   };
+
+  // Kích hoạt bốc ngẫu nhiên mỗi khi URL/Location thay đổi hoặc vào trang
+  useEffect(() => {
+    fetchRecommendations();
+  }, [location.key, location.pathname, location.search]);
 
   useEffect(() => {
     // 1. Fetch categories
@@ -572,13 +565,10 @@ export default function HomePage() {
     // 4. Featured Shops from /api/featured/shops (Admin/CTV curated - Max 20)
     api.get('/featured/shops').then(res => setFeaturedShops(res.data.featuredShops || [])).catch(console.error);
 
-    // 5. Recommended products (Random: 30% Top Sellers + 70% Other Active Products)
-    fetchRecommendations();
-
-    // 6. Near items (Hai Bà Trưng / Cầu Giấy)
+    // 5. Near items (Hai Bà Trưng / Cầu Giấy)
     api.get('/products?district=Hai Bà Trưng&limit=4').then(res => setNearProducts(res.data.products || [])).catch(console.error);
 
-    // 7. Free products (0đ)
+    // 6. Free products (0đ)
     api.get('/products?isFree=true&limit=4').then(res => setFreeProducts(res.data.products || [])).catch(console.error);
   }, []);
 

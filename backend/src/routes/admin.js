@@ -22,5 +22,7 @@ router.delete('/users/:id', requireAdmin, adminController.deleteUser);
 router.get('/logs', requireAdmin, adminController.getAdminLogs);
 router.post('/universities', requireAdmin, adminController.createUniversity);
 router.post('/categories', requireAdmin, adminController.createCategory);
+router.get('/settings', requireAdmin, adminController.getSystemSettings);
+router.put('/settings', requireAdmin, adminController.updateSystemSettings);
 
 module.exports = router;
