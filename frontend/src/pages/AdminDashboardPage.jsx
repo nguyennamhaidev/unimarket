@@ -18,16 +18,24 @@ import {
   GraduationCap, 
   FolderPlus,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Star,
+  Store,
+  Flame,
+  ArrowRight,
+  History,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { user, isAdmin, isCTV, canManageFeatured, isAuthenticated } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('overview'); // overview, users, products, reports, categories, logs
+  // Active Tab
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'overview' : 'featured_products');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +55,26 @@ export default function AdminDashboardPage() {
   // Logs state
   const [logsList, setLogsList] = useState([]);
 
-  // Modals / forms
+  // Featured Module State
+  const [featuredProductSlots, setFeaturedProductSlots] = useState([]);
+  const [featuredShopSlots, setFeaturedShopSlots] = useState([]);
+  const [featuredLogsList, setFeaturedLogsList] = useState([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(false);
+
+  // Modals for assigning featured
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [targetSlotForProduct, setTargetSlotForProduct] = useState(1);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [productSearchResults, setProductSearchResults] = useState([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+
+  const [showShopModal, setShowShopModal] = useState(false);
+  const [targetSlotForShop, setTargetSlotForShop] = useState(1);
+  const [shopSearchQuery, setShopSearchQuery] = useState('');
+  const [shopSearchResults, setShopSearchResults] = useState([]);
+  const [searchingShops, setSearchingShops] = useState(false);
+
+  // Modals / forms for category & uni
   const [newUniName, setNewUniName] = useState('');
   const [newUniShort, setNewUniShort] = useState('');
   const [newUniCity, setNewUniCity] = useState('Hà Nội');
@@ -60,19 +87,25 @@ export default function AdminDashboardPage() {
       navigate('/login?redirect=/admin');
       return;
     }
-    if (!isAdmin) {
+    if (!canManageFeatured) {
       alert('Bạn không có quyền truy cập trang quản trị!');
       navigate('/');
       return;
     }
-    loadDashboardStats();
-  }, [isAuthenticated, isAdmin]);
+    if (isAdmin) {
+      loadDashboardStats();
+    }
+  }, [isAuthenticated, isAdmin, canManageFeatured]);
 
   useEffect(() => {
-    if (activeTab === 'users') loadUsers();
-    else if (activeTab === 'products') loadProducts();
-    else if (activeTab === 'reports') loadReports();
-    else if (activeTab === 'logs') loadLogs();
+    if (activeTab === 'overview' && isAdmin) loadDashboardStats();
+    else if (activeTab === 'users' && isAdmin) loadUsers();
+    else if (activeTab === 'products' && isAdmin) loadProducts();
+    else if (activeTab === 'reports' && isAdmin) loadReports();
+    else if (activeTab === 'logs' && isAdmin) loadLogs();
+    else if (activeTab === 'featured_products') loadFeaturedProducts();
+    else if (activeTab === 'featured_shops') loadFeaturedShops();
+    else if (activeTab === 'featured_logs') loadFeaturedLogs();
   }, [activeTab]);
 
   const loadDashboardStats = async () => {
@@ -125,6 +158,158 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // -------------------------------------------------------------
+  // Featured Handlers
+  // -------------------------------------------------------------
+  const loadFeaturedProducts = async () => {
+    setLoadingFeatured(true);
+    try {
+      const res = await api.get('/featured/admin/products');
+      setFeaturedProductSlots(res.data.slots || []);
+    } catch (err) {
+      console.error('loadFeaturedProducts error:', err);
+    } finally {
+      setLoadingFeatured(false);
+    }
+  };
+
+  const loadFeaturedShops = async () => {
+    setLoadingFeatured(true);
+    try {
+      const res = await api.get('/featured/admin/shops');
+      setFeaturedShopSlots(res.data.slots || []);
+    } catch (err) {
+      console.error('loadFeaturedShops error:', err);
+    } finally {
+      setLoadingFeatured(false);
+    }
+  };
+
+  const loadFeaturedLogs = async () => {
+    setLoadingFeatured(true);
+    try {
+      const res = await api.get('/featured/admin/logs');
+      setFeaturedLogsList(res.data.logs || []);
+    } catch (err) {
+      console.error('loadFeaturedLogs error:', err);
+    } finally {
+      setLoadingFeatured(false);
+    }
+  };
+
+  const handleSearchProducts = async (query) => {
+    setProductSearchQuery(query);
+    if (!query.trim()) {
+      setProductSearchResults([]);
+      return;
+    }
+    setSearchingProducts(true);
+    try {
+      const res = await api.get(`/featured/admin/search-products?query=${encodeURIComponent(query.trim())}`);
+      setProductSearchResults(res.data.products || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchingProducts(false);
+    }
+  };
+
+  const handleAssignProduct = async (product, slotNum) => {
+    const targetSlot = featuredProductSlots.find(s => s.slotNumber === slotNum);
+    let confirmReplace = false;
+
+    if (targetSlot?.isOccupied) {
+      const currentTitle = targetSlot.data?.product?.title || 'Sản phẩm hiện tại';
+      const msg = `Slot ${slotNum < 10 ? '0' + slotNum : slotNum} đang chứa:\n"${currentTitle}"\n\nBạn có chắc chắn muốn thay thế bằng sản phẩm:\n"${product.title}"?`;
+      if (!window.confirm(msg)) return;
+      confirmReplace = true;
+    }
+
+    try {
+      const res = await api.post('/featured/admin/product', {
+        productId: product.id,
+        slotNumber: slotNum,
+        confirmReplace
+      });
+      alert(res.data.message);
+      setShowProductModal(false);
+      setProductSearchQuery('');
+      setProductSearchResults([]);
+      loadFeaturedProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi đưa sản phẩm vào slot.');
+    }
+  };
+
+  const handleRemoveProduct = async (slotNum) => {
+    if (!window.confirm(`Xác nhận gỡ sản phẩm khỏi Slot ${slotNum < 10 ? '0' + slotNum : slotNum}?`)) return;
+    try {
+      const res = await api.delete(`/featured/admin/product/${slotNum}`);
+      alert(res.data.message);
+      loadFeaturedProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi gỡ sản phẩm.');
+    }
+  };
+
+  const handleSearchShops = async (query) => {
+    setShopSearchQuery(query);
+    if (!query.trim()) {
+      setShopSearchResults([]);
+      return;
+    }
+    setSearchingShops(true);
+    try {
+      const res = await api.get(`/featured/admin/search-sellers?query=${encodeURIComponent(query.trim())}`);
+      setShopSearchResults(res.data.sellers || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchingShops(false);
+    }
+  };
+
+  const handleAssignShop = async (targetUser, slotNum) => {
+    const targetSlot = featuredShopSlots.find(s => s.slotNumber === slotNum);
+    let confirmReplace = false;
+
+    if (targetSlot?.isOccupied) {
+      const currentShopName = targetSlot.data?.user?.fullName || 'Gian hàng hiện tại';
+      const msg = `Slot ${slotNum < 10 ? '0' + slotNum : slotNum} đang chứa gian hàng:\n"${currentShopName}"\n\nBạn có chắc chắn muốn thay thế bằng gian hàng:\n"${targetUser.fullName}"?`;
+      if (!window.confirm(msg)) return;
+      confirmReplace = true;
+    }
+
+    try {
+      const res = await api.post('/featured/admin/shop', {
+        userId: targetUser.id,
+        slotNumber: slotNum,
+        confirmReplace
+      });
+      alert(res.data.message);
+      setShowShopModal(false);
+      setShopSearchQuery('');
+      setShopSearchResults([]);
+      loadFeaturedShops();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi đưa gian hàng vào slot.');
+    }
+  };
+
+  const handleRemoveShop = async (slotNum) => {
+    if (!window.confirm(`Xác nhận gỡ gian hàng khỏi Slot ${slotNum < 10 ? '0' + slotNum : slotNum}?`)) return;
+    try {
+      const res = await api.delete(`/featured/admin/shop/${slotNum}`);
+      alert(res.data.message);
+      loadFeaturedShops();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi gỡ gian hàng.');
+    }
+  };
+
+  // -------------------------------------------------------------
+  // User Management & Admin Handlers
+  // -------------------------------------------------------------
   const handleToggleBanUser = async (userId, username, currentStatus) => {
     const action = currentStatus === 'BANNED' ? 'mở khóa' : 'khóa';
     const reason = prompt(`Nhập lý do ${action} tài khoản @${username}:`, 'Vi phạm quy định cộng đồng');
@@ -134,24 +319,20 @@ export default function AdminDashboardPage() {
       await api.post(`/admin/users/${userId}/toggle-ban`, { reason });
       alert(`Đã ${action} tài khoản thành công.`);
       loadUsers();
-      loadDashboardStats();
+      if (isAdmin) loadDashboardStats();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi thao tác.');
     }
   };
 
-  const handleToggleRole = async (userId, username, currentRole) => {
-    const nextRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
-    const confirmMsg = currentRole === 'ADMIN'
-      ? `Bạn có chắc muốn hạ quyền tài khoản @${username} xuống làm Người dùng thường (USER)?`
-      : `Bạn có chắc chắn muốn phong tài khoản @${username} làm QUẢN TRỊ VIÊN (ADMIN)? Người này sẽ có toàn quyền kiểm duyệt và quản trị nền tảng!`;
-    if (!window.confirm(confirmMsg)) return;
+  const handleSetRole = async (userId, username, nextRole) => {
+    const roleTitle = nextRole === 'ADMIN' ? 'QUẢN TRỊ VIÊN (ADMIN)' : nextRole === 'CTV' ? 'CỘNG TÁC VIÊN (CTV - Chỉ quản lý Nổi Bật)' : 'NGƯỜI DÙNG THƯỜNG (USER)';
+    if (!window.confirm(`Xác nhận phân quyền cho @${username} thành: [${roleTitle}]?`)) return;
 
     try {
       const res = await api.post(`/admin/users/${userId}/role`, { role: nextRole });
       alert(res.data.message);
       loadUsers();
-      loadDashboardStats();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi phân quyền.');
     }
@@ -165,7 +346,7 @@ export default function AdminDashboardPage() {
       await api.delete(`/admin/products/${productId}`, { data: { reason } });
       alert('Đã xóa sản phẩm vi phạm.');
       loadProducts();
-      loadDashboardStats();
+      if (isAdmin) loadDashboardStats();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi xóa.');
     }
@@ -179,7 +360,7 @@ export default function AdminDashboardPage() {
       await api.post(`/admin/reports/${reportId}/resolve`, { action, adminNote: note });
       alert('Đã xử lý báo cáo vi phạm thành công!');
       loadReports();
-      loadDashboardStats();
+      if (isAdmin) loadDashboardStats();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi xử lý báo cáo.');
     }
@@ -219,6 +400,21 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Build Tab List dynamically
+  const tabs = [
+    { id: 'featured_products', label: '🔥 Sản phẩm nổi bật (20 Slot)' },
+    { id: 'featured_shops', label: '⭐ Gian hàng nổi bật (20 Slot)' },
+    { id: 'featured_logs', label: '📜 Lịch sử Featured' },
+    ...(isAdmin ? [
+      { id: 'overview', label: '📊 Tổng quan hệ thống' },
+      { id: 'users', label: '👥 Người dùng & Phân quyền' },
+      { id: 'products', label: '📦 Quản lý Tất cả Sản Phẩm' },
+      { id: 'reports', label: `🚩 Xử lý Báo Cáo (${stats?.stats?.pendingReports || 0})` },
+      { id: 'categories', label: '🏫 Trường & Danh mục' },
+      { id: 'logs', label: '🛡️ Audit Trail Admin' }
+    ] : [])
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
@@ -227,27 +423,32 @@ export default function AdminDashboardPage() {
         <div>
           <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold text-indigo-700 mb-2">
             <ShieldCheck className="w-4 h-4 text-indigo-600" />
-            <span>Trang Quản Trị Hệ Thống UniMarket</span>
+            <span>{isAdmin ? 'Trang Quản Trị Hệ Thống (ADMIN)' : 'Bảng Điều Khiển Cộng Tác Viên (CTV)'}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Admin Management Console
+            {isAdmin ? 'Admin Management Console' : 'Quản Lý Sản Phẩm & Gian Hàng Nổi Bật'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quản trị sinh viên, sản phẩm, khiếu nại báo cáo và nhật ký audit log
+            {isAdmin ? 'Quản trị sinh viên, sản phẩm, 20 slot nổi bật, báo cáo và audit log' : 'Bạn có quyền tuyển chọn và quản lý 20 slot Sản phẩm nổi bật & 20 slot Gian hàng nổi bật'}
           </p>
         </div>
 
         <button
-          onClick={loadDashboardStats}
+          onClick={() => {
+            if (activeTab === 'featured_products') loadFeaturedProducts();
+            else if (activeTab === 'featured_shops') loadFeaturedShops();
+            else if (activeTab === 'featured_logs') loadFeaturedLogs();
+            else if (isAdmin) loadDashboardStats();
+          }}
           className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 shadow-sm"
         >
           <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Làm mới số liệu</span>
+          <span>Làm mới dữ liệu</span>
         </button>
       </div>
 
-      {/* Overview Stat Cards (Spec Section 27) */}
-      {stats?.stats && (
+      {/* Overview Stat Cards (Only for ADMIN) */}
+      {isAdmin && stats?.stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-1">
             <div className="flex items-center justify-between text-slate-400">
@@ -281,7 +482,7 @@ export default function AdminDashboardPage() {
 
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-1">
             <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-bold">Báo cáo chờ xử lý</span>
+              <span className="text-xs font-bold">Báo cáo chờ</span>
               <AlertTriangle className="w-4 h-4 text-amber-500" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-amber-600">
@@ -301,16 +502,9 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-1">
-        {[
-          { id: 'overview', label: '📊 Tổng quan hoạt động' },
-          { id: 'users', label: '👥 Quản lý Người Dùng' },
-          { id: 'products', label: '📦 Quản lý Sản Phẩm' },
-          { id: 'reports', label: `🚩 Xử lý Báo Cáo (${stats?.stats?.pendingReports || 0})` },
-          { id: 'categories', label: '🏫 Trường & Danh mục' },
-          { id: 'logs', label: '📜 Nhật ký Thao tác (Logs)' }
-        ].map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -324,6 +518,361 @@ export default function AdminDashboardPage() {
           </button>
         ))}
       </div>
+
+      {/* Tab: Featured Products (20 Slots) */}
+      {activeTab === 'featured_products' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-rose-500/10 border border-orange-200 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-orange-500 text-white rounded-xl">
+                  <Flame className="w-4 h-4" />
+                </span>
+                <h3 className="font-black text-slate-900 text-base">20 Slot Sản Phẩm Nổi Bật Trang Chủ</h3>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 max-w-2xl">
+                Các sản phẩm trong danh sách này sẽ hiển thị trực tiếp tại Carousel Nổi bật trên Trang Chủ. Khi sản phẩm được đánh dấu <strong>Đã Bán</strong> hoặc bị xóa/ẩn, hệ thống sẽ tự động gỡ khỏi slot.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
+                Đang dùng: {featuredProductSlots.filter(s => s.isOccupied).length} / 20 slot
+              </span>
+            </div>
+          </div>
+
+          {loadingFeatured ? (
+            <div className="text-center py-20 text-xs text-slate-400">Đang tải danh sách 20 slot nổi bật...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+              {featuredProductSlots.map((slot) => {
+                const isOcc = slot.isOccupied && slot.data?.product;
+                const prod = slot.data?.product;
+                const slotLabel = slot.slotNumber < 10 ? `0${slot.slotNumber}` : slot.slotNumber;
+
+                return (
+                  <div
+                    key={slot.slotNumber}
+                    className={`relative rounded-3xl border transition-all flex flex-col justify-between p-4 ${
+                      isOcc 
+                        ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
+                        : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/30'
+                    }`}
+                  >
+                    {/* Slot Header */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="font-mono text-xs font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs">
+                        SLOT #{slotLabel}
+                      </span>
+                      {isOcc ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Đang hiển thị
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-600">
+                          Slot trống
+                        </span>
+                      )}
+                    </div>
+
+                    {isOcc ? (
+                      <div className="space-y-3 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 mb-2.5 border border-slate-100">
+                            {prod.images && prod.images.length > 0 ? (
+                              <img
+                                src={prod.images[0]}
+                                alt={prod.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                <Package className="w-8 h-8" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
+                              {prod.category?.name || 'Danh mục'}
+                            </div>
+                          </div>
+
+                          <h4 className="font-bold text-xs text-slate-900 line-clamp-2 leading-snug" title={prod.title}>
+                            {prod.title}
+                          </h4>
+
+                          <div className="mt-1 font-black text-rose-600 text-xs">
+                            {prod.isFree ? 'Miễn phí (0đ)' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}
+                          </div>
+
+                          <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                            <span className="truncate">Người bán: <strong>@{prod.seller?.username}</strong></span>
+                            <span className="font-semibold text-emerald-700 shrink-0">{prod.seller?.university?.shortName || ''}</span>
+                          </div>
+
+                          <div className="text-[10px] text-slate-400 mt-1">
+                            Người gán: {slot.data.addedBy?.fullName || 'BQT'} ({slot.data.addedBy?.role})
+                          </div>
+                        </div>
+
+                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setTargetSlotForProduct(slot.slotNumber);
+                              setShowProductModal(true);
+                            }}
+                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all"
+                          >
+                            Thay thế
+                          </button>
+                          <button
+                            onClick={() => handleRemoveProduct(slot.slotNumber)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Gỡ sản phẩm khỏi slot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <Link
+                            to={`/product/${prod.id}`}
+                            target="_blank"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                            title="Xem chi tiết"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-8 flex flex-col items-center justify-center text-center space-y-2 flex-1">
+                        <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-400 group-hover:text-emerald-600">
+                          <PlusCircle className="w-5 h-5" />
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-500 max-w-[140px]">
+                          Vị trí hiển thị số {slot.slotNumber}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setTargetSlotForProduct(slot.slotNumber);
+                            setShowProductModal(true);
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                        >
+                          + Chọn sản phẩm
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Featured Shops (20 Slots) */}
+      {activeTab === 'featured_shops' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-indigo-500/10 border border-teal-200 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-teal-600 text-white rounded-xl">
+                  <Star className="w-4 h-4" />
+                </span>
+                <h3 className="font-black text-slate-900 text-base">20 Slot Gian Hàng Sinh Viên Nổi Bật</h3>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 max-w-2xl">
+                Tuyển chọn các sinh viên bán đồ uy tín nhất, phản hồi tích cực để giới thiệu tới toàn bộ cộng đồng trên Trang Chủ.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
+                Đang dùng: {featuredShopSlots.filter(s => s.isOccupied).length} / 20 slot
+              </span>
+            </div>
+          </div>
+
+          {loadingFeatured ? (
+            <div className="text-center py-20 text-xs text-slate-400">Đang tải danh sách 20 gian hàng...</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+              {featuredShopSlots.map((slot) => {
+                const isOcc = slot.isOccupied && slot.data?.user;
+                const shopUser = slot.data?.user;
+                const slotLabel = slot.slotNumber < 10 ? `0${slot.slotNumber}` : slot.slotNumber;
+
+                return (
+                  <div
+                    key={slot.slotNumber}
+                    className={`relative rounded-3xl border transition-all flex flex-col justify-between p-4 ${
+                      isOcc 
+                        ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
+                        : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'
+                    }`}
+                  >
+                    {/* Slot Header */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="font-mono text-xs font-black px-2.5 py-1 bg-teal-800 text-white rounded-xl shadow-xs">
+                        SHOP #{slotLabel}
+                      </span>
+                      {isOcc ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
+                          Đang hiển thị
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-600">
+                          Slot trống
+                        </span>
+                      )}
+                    </div>
+
+                    {isOcc ? (
+                      <div className="space-y-3 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2.5">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-lg flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                              {shopUser.avatar ? (
+                                <img src={shopUser.avatar} alt={shopUser.fullName} className="w-full h-full object-cover" />
+                              ) : (
+                                shopUser.fullName?.charAt(0) || 'U'
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-black text-xs text-slate-900 truncate" title={shopUser.fullName}>
+                                {shopUser.fullName}
+                              </h4>
+                              <div className="text-[11px] text-slate-400">@{shopUser.username}</div>
+                              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                                {shopUser.university?.shortName || 'Sinh viên'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-2xl text-[11px]">
+                            <div className="flex items-center gap-1 text-amber-600 font-bold">
+                              <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                              <span>{shopUser.ratingAvg?.toFixed(1) || '5.0'}</span>
+                              <span className="text-slate-400 font-normal text-[10px]">({shopUser.ratingCount || 0})</span>
+                            </div>
+                            <div className="text-right text-slate-700 font-bold">
+                              {shopUser._count?.products || 0} <span className="font-normal text-slate-400 text-[10px]">đồ bán</span>
+                            </div>
+                          </div>
+
+                          <div className="text-[10px] text-slate-400 mt-2">
+                            Người gán: {slot.data.addedBy?.fullName || 'BQT'} ({slot.data.addedBy?.role})
+                          </div>
+                        </div>
+
+                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setTargetSlotForShop(slot.slotNumber);
+                              setShowShopModal(true);
+                            }}
+                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all"
+                          >
+                            Thay thế
+                          </button>
+                          <button
+                            onClick={() => handleRemoveShop(slot.slotNumber)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Gỡ gian hàng khỏi slot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <Link
+                            to={`/profile/${shopUser.id}`}
+                            target="_blank"
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                            title="Xem shop"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-8 flex flex-col items-center justify-center text-center space-y-2 flex-1">
+                        <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-400 group-hover:text-teal-600">
+                          <Store className="w-5 h-5" />
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-500 max-w-[140px]">
+                          Vị trí gian hàng số {slot.slotNumber}
+                        </p>
+                        <button
+                          onClick={() => {
+                            setTargetSlotForShop(slot.slotNumber);
+                            setShowShopModal(true);
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                        >
+                          + Chọn gian hàng
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Featured Audit Logs */}
+      {activeTab === 'featured_logs' && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Lịch sử thay đổi Featured Products & Shops</h3>
+              <p className="text-xs text-slate-500">Ghi lại toàn bộ thao tác gán, thay thế hoặc gỡ bỏ của Admin & CTV</p>
+            </div>
+            <button
+              onClick={loadFeaturedLogs}
+              className="p-2 hover:bg-slate-100 rounded-xl text-slate-500"
+              title="Tải lại nhật ký"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+
+          {featuredLogsList.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-400">Chưa có bản ghi lịch sử featured nào.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {featuredLogsList.map((log) => {
+                const isAdd = log.action?.includes('ADD');
+                const isReplace = log.action?.includes('REPLACE');
+                const isRemove = log.action?.includes('REMOVE');
+
+                const badgeColor = isAdd
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : isReplace
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200';
+
+                return (
+                  <div key={log.id} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border ${badgeColor}`}>
+                          {log.action}
+                        </span>
+                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded">
+                          SLOT {log.slotNumber < 10 ? `0${log.slotNumber}` : log.slotNumber}
+                        </span>
+                        <span className="font-semibold text-slate-800">{log.details}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        Thực hiện bởi: <strong>{log.performer?.fullName}</strong> (@{log.performer?.username}) • Vai trò: <span className="font-bold text-slate-600">{log.performer?.role}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                      {new Date(log.createdAt).toLocaleString('vi-VN')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
@@ -372,7 +921,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Tab 2: Users Management (Spec Section 28 & 29) */}
+      {/* Tab 2: Users Management & RBAC */}
       {activeTab === 'users' && (
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm space-y-4 p-6">
           <div className="flex items-center justify-between gap-4">
@@ -402,6 +951,7 @@ export default function AdminDashboardPage() {
                   <th className="py-3 px-4">Sinh viên</th>
                   <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Trường ĐH</th>
+                  <th className="py-3 px-4">Vai trò (Role)</th>
                   <th className="py-3 px-4">Số đồ đăng</th>
                   <th className="py-3 px-4">Trạng thái</th>
                   <th className="py-3 px-4 text-right">Hành động</th>
@@ -417,6 +967,29 @@ export default function AdminDashboardPage() {
                     <td className="py-3 px-4 text-slate-600">{u.email}</td>
                     <td className="py-3 px-4 font-semibold text-emerald-700">
                       {u.university?.shortName || '-'}
+                    </td>
+                    <td className="py-3 px-4">
+                      {u.id === user?.id ? (
+                        <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg text-[11px]">
+                          {u.role} (Bạn)
+                        </span>
+                      ) : (
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleSetRole(u.id, u.username, e.target.value)}
+                          className={`font-bold text-[11px] px-2 py-1 rounded-lg border cursor-pointer ${
+                            u.role === 'ADMIN'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : u.role === 'CTV'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          <option value="USER">USER (Thường)</option>
+                          <option value="CTV">CTV (Cộng tác viên)</option>
+                          <option value="ADMIN">ADMIN (Quản trị)</option>
+                        </select>
+                      )}
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-800">
                       {u._count?.products || 0}
@@ -761,7 +1334,6 @@ export default function AdminDashboardPage() {
               </button>
             </form>
           </div>
-
         </div>
       )}
 
@@ -785,6 +1357,244 @@ export default function AdminDashboardPage() {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Select Product for Slot */}
+      {showProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="font-mono text-xs font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs inline-block mb-1">
+                  SLOT #{targetSlotForProduct < 10 ? `0${targetSlotForProduct}` : targetSlotForProduct}
+                </span>
+                <h3 className="font-black text-slate-900 text-lg">Chọn Sản Phẩm Đưa Vào Slot</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowProductModal(false);
+                  setProductSearchQuery('');
+                  setProductSearchResults([]);
+                }}
+                className="p-2 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {featuredProductSlots.find(s => s.slotNumber === targetSlotForProduct)?.isOccupied && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3.5 rounded-2xl text-xs flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <div>
+                    <strong>Chú ý:</strong> Slot #{targetSlotForProduct} hiện đang có sản phẩm (
+                    <em>{featuredProductSlots.find(s => s.slotNumber === targetSlotForProduct)?.data?.product?.title}</em>). Chọn sản phẩm mới sẽ thay thế sản phẩm này.
+                  </div>
+                </div>
+              )}
+
+              {/* Search Box */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên sản phẩm, danh mục, người bán..."
+                  value={productSearchQuery}
+                  onChange={(e) => handleSearchProducts(e.target.value)}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              </div>
+
+              {/* Results List */}
+              {searchingProducts ? (
+                <div className="py-12 text-center text-xs text-slate-400">Đang tìm kiếm sản phẩm...</div>
+              ) : productSearchQuery.trim() && productSearchResults.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  Không tìm thấy sản phẩm khả dụng nào (chỉ tìm các sản phẩm đang hiển thị và chưa bán).
+                </div>
+              ) : productSearchResults.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Nhập từ khóa vào ô tìm kiếm ở trên để lọc danh sách sản phẩm sinh viên.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {productSearchResults.map((prod) => (
+                    <div key={prod.id} className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/70 p-2.5 rounded-2xl transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                          {prod.images && prod.images.length > 0 ? (
+                            <img src={prod.images[0]} alt={prod.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300">
+                              <Package className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs text-slate-900 truncate" title={prod.title}>
+                            {prod.title}
+                          </h4>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                            <span className="font-black text-rose-600">
+                              {prod.isFree ? '0đ' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}
+                            </span>
+                            <span>•</span>
+                            <span>@{prod.seller?.username}</span>
+                            <span>•</span>
+                            <span className="text-emerald-700 font-semibold">{prod.seller?.university?.shortName || ''}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleAssignProduct(prod, targetSlotForProduct)}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 transition-all"
+                      >
+                        Chọn Slot {targetSlotForProduct}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowProductModal(false);
+                  setProductSearchQuery('');
+                  setProductSearchResults([]);
+                }}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Select Shop for Slot */}
+      {showShopModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="font-mono text-xs font-black px-2.5 py-1 bg-teal-800 text-white rounded-xl shadow-xs inline-block mb-1">
+                  SHOP #{targetSlotForShop < 10 ? `0${targetSlotForShop}` : targetSlotForShop}
+                </span>
+                <h3 className="font-black text-slate-900 text-lg">Chọn Gian Hàng Đưa Vào Slot</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowShopModal(false);
+                  setShopSearchQuery('');
+                  setShopSearchResults([]);
+                }}
+                className="p-2 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              {featuredShopSlots.find(s => s.slotNumber === targetSlotForShop)?.isOccupied && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3.5 rounded-2xl text-xs flex items-center gap-2.5">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <div>
+                    <strong>Chú ý:</strong> Slot #{targetSlotForShop} hiện đang có gian hàng (
+                    <em>{featuredShopSlots.find(s => s.slotNumber === targetSlotForShop)?.data?.user?.fullName}</em>). Chọn gian hàng mới sẽ thay thế gian hàng này.
+                  </div>
+                </div>
+              )}
+
+              {/* Search Box */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên sinh viên, username, email..."
+                  value={shopSearchQuery}
+                  onChange={(e) => handleSearchShops(e.target.value)}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              </div>
+
+              {/* Results List */}
+              {searchingShops ? (
+                <div className="py-12 text-center text-xs text-slate-400">Đang tìm kiếm gian hàng...</div>
+              ) : shopSearchQuery.trim() && shopSearchResults.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  Không tìm thấy người bán phù hợp.
+                </div>
+              ) : shopSearchResults.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Nhập từ khóa vào ô tìm kiếm ở trên để lọc danh sách gian hàng sinh viên.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {shopSearchResults.map((seller) => (
+                    <div key={seller.id} className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/70 p-2.5 rounded-2xl transition-all">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                          {seller.avatar ? (
+                            <img src={seller.avatar} alt={seller.fullName} className="w-full h-full object-cover" />
+                          ) : (
+                            seller.fullName?.charAt(0) || 'U'
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-xs text-slate-900 truncate" title={seller.fullName}>
+                            {seller.fullName}
+                          </h4>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                            <span>@{seller.username}</span>
+                            <span>•</span>
+                            <span className="text-teal-700 font-semibold">{seller.university?.shortName || ''}</span>
+                            <span>•</span>
+                            <span className="font-bold text-slate-700">{seller._count?.products || 0} đồ bán</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleAssignShop(seller, targetSlotForShop)}
+                        className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 transition-all"
+                      >
+                        Chọn Slot {targetSlotForShop}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowShopModal(false);
+                  setShopSearchQuery('');
+                  setShopSearchResults([]);
+                }}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-100 transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+
           </div>
         </div>
       )}

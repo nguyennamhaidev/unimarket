@@ -149,12 +149,14 @@ exports.toggleBanUser = async (req, res) => {
       data: { status: nextStatus }
     });
 
-    // Also hide user's products if banned
+    // Also hide user's products and remove from featured if banned
     if (nextStatus === 'BANNED') {
       await prisma.product.updateMany({
         where: { sellerId: id, status: 'ACTIVE' },
         data: { status: 'HIDDEN' }
       });
+      await prisma.featuredShop.deleteMany({ where: { userId: id } }).catch(() => {});
+      await prisma.featuredProduct.deleteMany({ where: { product: { sellerId: id } } }).catch(() => {});
     }
 
     await logAdminAction(
@@ -242,6 +244,10 @@ exports.updateProductStatus = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy sản phẩm.' });
     }
 
+    if (status !== 'ACTIVE') {
+      await prisma.featuredProduct.deleteMany({ where: { productId: id } }).catch(() => {});
+    }
+
     const updated = await prisma.product.update({
       where: { id },
       data: { status }
@@ -290,6 +296,7 @@ exports.deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy sản phẩm.' });
     }
 
+    await prisma.featuredProduct.deleteMany({ where: { productId: id } }).catch(() => {});
     await prisma.product.delete({ where: { id } });
 
     await logAdminAction(
@@ -494,10 +501,10 @@ exports.createCategory = async (req, res) => {
 exports.toggleUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body; // "ADMIN" or "USER"
+    const { role } = req.body; // "ADMIN", "CTV", or "USER"
 
-    if (!role || !['ADMIN', 'USER'].includes(role)) {
-      return res.status(400).json({ message: 'Vai trò không hợp lệ (chỉ chấp nhận ADMIN hoặc USER).' });
+    if (!role || !['ADMIN', 'CTV', 'USER'].includes(role)) {
+      return res.status(400).json({ message: 'Vai trò không hợp lệ (chấp nhận ADMIN, CTV hoặc USER).' });
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
@@ -510,6 +517,8 @@ exports.toggleUserRole = async (req, res) => {
       data: { role }
     });
 
+    const roleName = role === 'ADMIN' ? 'Quản trị viên (Admin)' : role === 'CTV' ? 'Cộng tác viên (CTV)' : 'Người dùng (User)';
+
     await logAdminAction(
       req.user.id,
       'UPDATE_USER_ROLE',
@@ -519,7 +528,7 @@ exports.toggleUserRole = async (req, res) => {
     );
 
     res.json({
-      message: `Đã cập nhật vai trò của @${targetUser.username} thành ${role === 'ADMIN' ? 'Quản trị viên (Admin)' : 'Người dùng (User)'}.`,
+      message: `Đã cập nhật vai trò của @${targetUser.username} thành ${roleName}.`,
       user: updated
     });
   } catch (err) {

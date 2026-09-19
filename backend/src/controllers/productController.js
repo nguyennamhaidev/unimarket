@@ -464,6 +464,9 @@ exports.deleteProduct = async (req, res) => {
       return res.status(403).json({ message: 'Bạn không có quyền xóa sản phẩm này.' });
     }
 
+    // Auto remove from featured products if deleted
+    await prisma.featuredProduct.deleteMany({ where: { productId: id } }).catch(() => {});
+
     await prisma.product.delete({ where: { id } });
 
     res.json({ message: 'Đã xóa sản phẩm thành công.' });
@@ -489,6 +492,9 @@ exports.markAsSold = async (req, res) => {
     if (product.sellerId !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Chỉ người bán mới có quyền đánh dấu đã bán.' });
     }
+
+    // Auto remove/inactive from featured products if marked as SOLD
+    await prisma.featuredProduct.deleteMany({ where: { productId: id } }).catch(() => {});
 
     // Update status to SOLD
     const updated = await prisma.product.update({
@@ -562,6 +568,11 @@ exports.toggleHide = async (req, res) => {
     }
 
     const nextStatus = product.status === 'HIDDEN' ? 'ACTIVE' : 'HIDDEN';
+    
+    if (nextStatus === 'HIDDEN') {
+      await prisma.featuredProduct.deleteMany({ where: { productId: id } }).catch(() => {});
+    }
+
     const updated = await prisma.product.update({
       where: { id },
       data: { status: nextStatus }

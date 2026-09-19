@@ -1,7 +1,18 @@
-﻿import axios from 'axios';
+import axios from 'axios';
+
+// Dynamically determine baseURL
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return '/api'; // Proxied by Vite to localhost:5000 in dev
+    }
+  }
+  return 'https://unimarket-backend-w17a.onrender.com/api';
+};
 
 const api = axios.create({
-  baseURL: 'https://unimarket-backend-w17a.onrender.com/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json'
   }

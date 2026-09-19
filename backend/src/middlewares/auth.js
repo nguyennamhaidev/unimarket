@@ -60,9 +60,17 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const requireAdminOrCTV = (req, res, next) => {
+  if (!req.user || !['ADMIN', 'CTV', 'QTV'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Truy cập bị từ chối. Chỉ dành cho Quản trị viên (Admin) hoặc Cộng tác viên (CTV).' });
+  }
+  next();
+};
+
 module.exports = {
   authenticate,
   optionalAuth,
   requireAdmin,
+  requireAdminOrCTV,
   JWT_SECRET
 };

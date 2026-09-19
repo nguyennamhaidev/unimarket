@@ -16,6 +16,7 @@ import {
   ExternalLink,
   MessageSquare,
   Sparkles,
+  ArrowLeft,
   X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -26,7 +27,7 @@ export default function ChatPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { socket } = useSocket();
+  const { socket, setUnreadMessagesCount } = useSocket();
 
   const conversationIdFromUrl = searchParams.get('id');
 
@@ -65,26 +66,49 @@ export default function ChatPage() {
     } else if (conversations.length > 0 && !activeConv) {
       loadConversationMessages(conversations[0].id);
     }
-  }, [conversationIdFromUrl, conversations]);
+  }, [conversationIdFromUrl, conversations.length]);
 
-  // Socket listener for new messages & typing
+  // Socket listener for new messages, read receipts & typing
   useEffect(() => {
     if (!socket || !activeConv) return;
 
     socket.emit('join_conversation', activeConv.id);
+    socket.emit('mark_read', { conversationId: activeConv.id, userId: user?.id });
 
     const handleNewMessage = (msg) => {
       if (msg.conversationId === activeConv.id) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
         scrollToBottom();
+
+        // If message is from partner, mark it as read immediately
+        if (msg.senderId !== user?.id) {
+          socket.emit('mark_read', { conversationId: activeConv.id, userId: user?.id });
+          api.post(`/chat/conversation/${activeConv.id}/read`).catch(() => {});
+        }
       }
+
       // Update snippet in conversation list
       setConversations(prev => prev.map(c => {
         if (c.id === msg.conversationId) {
-          return { ...c, lastMessage: msg, lastMessageAt: msg.createdAt };
+          const isCurrentActive = activeConv.id === msg.conversationId;
+          return {
+            ...c,
+            lastMessage: msg,
+            lastMessageAt: msg.createdAt,
+            unreadCount: isCurrentActive || msg.senderId === user?.id ? 0 : (c.unreadCount || 0) + 1
+          };
         }
         return c;
       }));
+    };
+
+    const handleMessagesRead = ({ conversationId }) => {
+      if (conversationId === activeConv.id) {
+        setMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+      }
     };
 
     const handleUserTyping = ({ conversationId, isTyping: typingStatus }) => {
@@ -94,14 +118,16 @@ export default function ChatPage() {
     };
 
     socket.on('new_message', handleNewMessage);
+    socket.on('messages_read', handleMessagesRead);
     socket.on('user_typing', handleUserTyping);
 
     return () => {
       socket.emit('leave_conversation', activeConv.id);
       socket.off('new_message', handleNewMessage);
+      socket.off('messages_read', handleMessagesRead);
       socket.off('user_typing', handleUserTyping);
     };
-  }, [socket, activeConv]);
+  }, [socket, activeConv?.id, user?.id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -115,7 +141,12 @@ export default function ChatPage() {
     setLoadingConvList(true);
     try {
       const res = await api.get('/chat/conversations');
-      setConversations(res.data.conversations || []);
+      const list = res.data.conversations || [];
+      setConversations(list);
+      if (setUnreadMessagesCount) {
+        const total = list.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        setUnreadMessagesCount(total);
+      }
     } catch (err) {
       console.error('fetchConversations error:', err);
     } finally {
@@ -134,6 +165,10 @@ export default function ChatPage() {
       // Clear unread badge in list
       setConversations(prev => prev.map(c => c.id === convId ? { ...c, unreadCount: 0 } : c));
       setSearchParams({ id: convId });
+
+      if (socket) {
+        socket.emit('mark_read', { conversationId: convId, userId: user?.id });
+      }
 
       // If URL has review param, open modal
       if (searchParams.get('review') === 'true') {
@@ -156,7 +191,11 @@ export default function ChatPage() {
         text: textToSend.trim()
       });
 
-      setMessages(prev => [...prev, res.data.message]);
+      const newMsg = res.data.message;
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       setInputText('');
 
       // Notify stop typing
@@ -167,7 +206,7 @@ export default function ChatPage() {
       // Update in conversation list
       setConversations(prev => prev.map(c => {
         if (c.id === activeConv.id) {
-          return { ...c, lastMessage: res.data.message, lastMessageAt: new Date() };
+          return { ...c, lastMessage: newMsg, lastMessageAt: new Date() };
         }
         return c;
       }));

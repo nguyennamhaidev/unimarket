@@ -24,11 +24,13 @@ model User {
   studentCohort String?
   city          String    @default("Hà Nội")
   district      String?
-  role          String    @default("USER") // USER, ADMIN
+  role          String    @default("USER") // USER, QTV, ADMIN
   status        String    @default("ACTIVE") // ACTIVE, BANNED
   rating        Float     @default(5.0)
   totalReviews  Int       @default(0)
   totalSold     Int       @default(0)
+  isFeaturedShop Boolean  @default(false)
+  featuredShopOrder Int   @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -49,6 +51,12 @@ model User {
   blockedBy           BlockedUser[]  @relation("Blocked")
   notifications       Notification[]
   adminLogs           AdminLog[]
+
+  // Featured relations
+  featuredProductsCreated FeaturedProduct[] @relation("FeaturedProductCreator")
+  featuredShopsCreated    FeaturedShop[]    @relation("FeaturedShopCreator")
+  featuredShop            FeaturedShop?
+  featuredLogs            FeaturedLog[]     @relation("FeaturedLogCreator")
 }
 
 model University {
@@ -82,6 +90,8 @@ model Product {
   isFree          Boolean        @default(false)
   condition       String         // NEW, LIKE_NEW, GOOD, USED, OLD
   status          String         @default("ACTIVE") // ACTIVE, SOLD, HIDDEN, REJECTED, PENDING
+  isFeatured      Boolean        @default(false)
+  featuredOrder   Int            @default(0)
   sellerId        String
   seller          User           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   categoryId      String
@@ -99,11 +109,12 @@ model Product {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  images        ProductImage[]
-  favorites     Favorite[]
-  conversations Conversation[]
-  transactions  Transaction[]
-  reports       Report[]
+  images          ProductImage[]
+  favorites       Favorite[]
+  conversations   Conversation[]
+  transactions    Transaction[]
+  reports         Report[]
+  featuredProduct FeaturedProduct?
 }
 
 model ProductImage {
@@ -239,5 +250,41 @@ model AdminLog {
   targetType String
   targetId   String
   details    String
+  createdAt  DateTime @default(now())
+}
+
+model FeaturedProduct {
+  id         String   @id @default(cuid())
+  productId  String   @unique
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  slotNumber Int      @unique // 1 to 20
+  status     String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdBy  String
+  creator    User     @relation("FeaturedProductCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model FeaturedShop {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slotNumber Int      @unique // 1 to 20
+  status     String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdBy  String
+  creator    User     @relation("FeaturedShopCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model FeaturedLog {
+  id         String   @id @default(cuid())
+  type       String   // PRODUCT, SHOP
+  targetId   String   // productId or userId
+  action     String   // ADD, REMOVE, REPLACE
+  slotNumber Int
+  createdBy  String
+  creator    User     @relation("FeaturedLogCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  details    String?
   createdAt  DateTime @default(now())
 }

@@ -182,6 +182,15 @@ exports.getConversationMessages = async (req, res) => {
       data: { isRead: true }
     });
 
+    // Notify other party via socket that messages are read
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conversation_${id}`).emit('messages_read', {
+        conversationId: id,
+        readBy: userId
+      });
+    }
+
     const messages = await prisma.message.findMany({
       where: { conversationId: id },
       orderBy: { createdAt: 'asc' },
@@ -212,6 +221,35 @@ exports.getConversationMessages = async (req, res) => {
   } catch (err) {
     console.error('getConversationMessages error:', err);
     res.status(500).json({ message: 'Lỗi khi tải tin nhắn.' });
+  }
+};
+
+exports.markConversationRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    await prisma.message.updateMany({
+      where: {
+        conversationId: id,
+        senderId: { not: userId },
+        isRead: false
+      },
+      data: { isRead: true }
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conversation_${id}`).emit('messages_read', {
+        conversationId: id,
+        readBy: userId
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('markConversationRead error:', err);
+    res.status(500).json({ message: 'Lỗi khi đánh dấu tin nhắn đã đọc.' });
   }
 };
 

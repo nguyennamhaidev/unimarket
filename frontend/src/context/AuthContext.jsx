@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api';
 
 const AuthContext = createContext(null);
@@ -77,7 +77,9 @@ export const AuthProvider = ({ children }) => {
       refreshUser,
       updateProfile,
       isAuthenticated: !!user,
-      isAdmin: user?.role === 'ADMIN'
+      isAdmin: user?.role === 'ADMIN',
+      isCTV: user?.role === 'CTV' || user?.role === 'QTV',
+      canManageFeatured: user?.role === 'ADMIN' || user?.role === 'CTV' || user?.role === 'QTV'
     }}>
       {children}
     </AuthContext.Provider>

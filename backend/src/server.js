@@ -14,6 +14,7 @@ const reportRoutes = require('./routes/reports');
 const catUniRoutes = require('./routes/categories');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
+const featuredRoutes = require('./routes/featured');
 
 const app = express();
 const server = http.createServer(app);
@@ -46,6 +47,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api', catUniRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/featured', featuredRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', name: 'UniMarket API', timestamp: new Date() });
@@ -72,6 +74,16 @@ io.on('connection', (socket) => {
   socket.on('leave_conversation', (conversationId) => {
     if (conversationId) {
       socket.leave(`conversation_${conversationId}`);
+    }
+  });
+
+  // Read receipt broadcast
+  socket.on('mark_read', ({ conversationId, userId }) => {
+    if (conversationId) {
+      socket.to(`conversation_${conversationId}`).emit('messages_read', {
+        conversationId,
+        readBy: userId
+      });
     }
   });
 

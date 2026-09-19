@@ -21,8 +21,8 @@ import { useSocket } from '../../context/SocketContext';
 import api from '../../api';
 
 export default function Navbar() {
-  const { user, logout, isAuthenticated, isAdmin } = useAuth();
-  const { unreadCount } = useSocket();
+  const { user, logout, isAuthenticated, isAdmin, isCTV, canManageFeatured } = useAuth();
+  const { unreadCount, unreadMessagesCount, setUnreadMessagesCount } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,6 +48,14 @@ export default function Navbar() {
     if (isAuthenticated) {
       api.get('/users/my/notifications')
         .then(res => setNotifications(res.data.notifications || []))
+        .catch(console.error);
+
+      // Load unread messages count
+      api.get('/chat/conversations')
+        .then(res => {
+          const total = (res.data.conversations || []).reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+          if (setUnreadMessagesCount) setUnreadMessagesCount(total);
+        })
         .catch(console.error);
     }
   }, [isAuthenticated, location.pathname]);
@@ -165,9 +173,9 @@ export default function Navbar() {
                   title="Tin nhắn"
                 >
                   <MessageSquare className="w-5 h-5" />
-                  {user?.stats?.unreadMessages > 0 && (
+                  {unreadMessagesCount > 0 && (
                     <span className="absolute top-1 right-1 w-4 h-4 text-[10px] font-bold bg-rose-500 text-white rounded-full flex items-center justify-center animate-pulse">
-                      {user.stats.unreadMessages}
+                      {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                     </span>
                   )}
                 </Link>
@@ -276,14 +284,14 @@ export default function Navbar() {
                           <span>Đồ đã lưu yêu thích</span>
                         </Link>
 
-                        {isAdmin && (
+                        {canManageFeatured && (
                           <Link
                             to="/admin"
                             onClick={() => setShowUserMenu(false)}
                             className="flex items-center gap-2.5 px-4 py-2 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 transition-colors font-bold"
                           >
                             <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                            <span>Trang Quản Trị Admin</span>
+                            <span>{isAdmin ? 'Trang Quản Trị Admin' : 'Quản lý Nổi Bật (CTV)'}</span>
                           </Link>
                         )}
 
