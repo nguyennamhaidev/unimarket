@@ -679,6 +679,94 @@ exports.getMyFavorites = async (req, res) => {
   }
 };
 
+// Fallback student products if database has few products yet
+const FALLBACK_STUDENT_PRODUCTS = [
+  {
+    id: 'demo-p1',
+    title: 'Giáo trình Triết học Mác - Lênin & Kinh tế Chính trị (Full bộ K66)',
+    description: 'Sách mới 98%, đã highlight các phần trọng tâm ôn thi qua môn',
+    price: 35000,
+    isFree: false,
+    condition: 'LIKE_NEW',
+    status: 'ACTIVE',
+    district: 'Hai Bà Trưng',
+    images: [{ url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Nguyễn Văn Minh', username: 'minh_hust', rating: 4.9, totalSold: 12 },
+    university: { shortName: 'Bách Khoa', name: 'ĐH Bách Khoa Hà Nội' },
+    category: { name: 'Giáo trình & Sách' }
+  },
+  {
+    id: 'demo-p2',
+    title: 'Máy tính cầm tay Casio FX-580VNX chính hãng Bitex còn tem',
+    description: 'Dùng tốt cho môn Giải tích và Đại số, phím nảy nhạy, còn pin zin',
+    price: 380000,
+    isFree: false,
+    condition: 'LIKE_NEW',
+    status: 'ACTIVE',
+    district: 'Cầu Giấy',
+    images: [{ url: 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Trần Thu Trang', username: 'trang_neu', rating: 5.0, totalSold: 28 },
+    university: { shortName: 'NEU', name: 'ĐH Kinh Tế Quốc Dân' },
+    category: { name: 'Đồ điện tử & Phụ kiện' }
+  },
+  {
+    id: 'demo-p3',
+    title: 'Bàn học gấp gọn sinh viên có khe để iPad/điện thoại và cốc nước',
+    description: 'Bàn chân sắt chịu lực tốt, mặt gỗ ép chống xước, tiện dùng trên giường KTX',
+    price: 65000,
+    isFree: false,
+    condition: 'GOOD',
+    status: 'ACTIVE',
+    district: 'Đống Đa',
+    images: [{ url: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Lê Hoàng Nam', username: 'nam_ftu', rating: 4.8, totalSold: 9 },
+    university: { shortName: 'FTU', name: 'ĐH Ngoại Thương' },
+    category: { name: 'Đồ dùng phòng trọ' }
+  },
+  {
+    id: 'demo-p4',
+    title: 'Đèn học chống cận Rạng Đông 5W ánh sáng vàng bảo vệ mắt',
+    description: 'Đèn dùng tốt, tiết kiệm điện, có kèm củ sạc và dây cắm',
+    price: 80000,
+    isFree: false,
+    condition: 'GOOD',
+    status: 'ACTIVE',
+    district: 'Thanh Xuân',
+    images: [{ url: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Đặng Mai Phương', username: 'phuong_hnu', rating: 4.9, totalSold: 15 },
+    university: { shortName: 'ĐHQG', name: 'ĐH Quốc Gia Hà Nội' },
+    category: { name: 'Đồ gia dụng' }
+  },
+  {
+    id: 'demo-p5',
+    title: 'Nồi cơm điện mini 1.2L đa năng nấu cơm, nấu lẩu, luộc trứng',
+    description: 'Nồi còn rất mới do chuyển về ở với gia đình nên pass lại giá sinh viên',
+    price: 150000,
+    isFree: false,
+    condition: 'LIKE_NEW',
+    status: 'ACTIVE',
+    district: 'Cầu Giấy',
+    images: [{ url: 'https://images.unsplash.com/photo-1544233726-9f1d2b27be8b?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Vũ Đức Thịnh', username: 'thinh_ictu', rating: 5.0, totalSold: 21 },
+    university: { shortName: 'Bưu Chính', name: 'Học Viện PTIT' },
+    category: { name: 'Đồ gia dụng' }
+  },
+  {
+    id: 'demo-p6',
+    title: 'Áo khoác đồng phục thể chất Bách Khoa size L còn mới tinh',
+    description: 'Mặc đúng 2 buổi thi kết thúc môn, không sờn rách, vải gió 2 lớp ấm',
+    price: 90000,
+    isFree: false,
+    condition: 'LIKE_NEW',
+    status: 'ACTIVE',
+    district: 'Hai Bà Trưng',
+    images: [{ url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600&auto=format&fit=crop&q=80' }],
+    seller: { fullName: 'Bùi Đức Anh', username: 'ducanh_k65', rating: 4.7, totalSold: 6 },
+    university: { shortName: 'Bách Khoa', name: 'ĐH Bách Khoa Hà Nội' },
+    category: { name: 'Thời trang sinh viên' }
+  }
+];
+
 // Gợi ý sản phẩm ngẫu nhiên: 30% ưu tiên từ các gian hàng uy tín/nhiều đơn bán và 70% từ các sản phẩm sinh viên khác
 exports.getRecommendedProducts = async (req, res) => {
   try {
@@ -773,6 +861,18 @@ exports.getRecommendedProducts = async (req, res) => {
         if (!existingIds.has(p.id)) {
           finalRecommended.push(p);
           existingIds.add(p.id);
+          if (finalRecommended.length >= limit) break;
+        }
+      }
+    }
+
+    // Nếu hệ thống đang có rất ít sản phẩm (ví dụ 0-3 sản phẩm), bổ sung thêm mẫu sản phẩm sinh viên để giao diện luôn đầy đủ
+    if (finalRecommended.length < 6) {
+      const existingIds = new Set(finalRecommended.map(p => p.id));
+      for (const sample of shuffle(FALLBACK_STUDENT_PRODUCTS)) {
+        if (!existingIds.has(sample.id)) {
+          finalRecommended.push(sample);
+          existingIds.add(sample.id);
           if (finalRecommended.length >= limit) break;
         }
       }

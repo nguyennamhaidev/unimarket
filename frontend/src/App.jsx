@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import FloatingSupportWidget from './components/common/FloatingSupportWidget';
 
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
@@ -17,7 +18,7 @@ import AuthPage from './pages/AuthPage';
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 relative">
       <Navbar />
       <main className="flex-1">
         <ErrorBoundary>
@@ -38,6 +39,8 @@ export default function App() {
         </ErrorBoundary>
       </main>
       <Footer />
+      {/* Floating 24/7 Support & Report Widget (Icon 🎧) */}
+      <FloatingSupportWidget />
     </div>
   );
 }

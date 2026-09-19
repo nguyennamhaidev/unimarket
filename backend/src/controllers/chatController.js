@@ -425,3 +425,198 @@ exports.deleteConversation = async (req, res) => {
     res.status(500).json({ message: 'Lỗi khi xóa cuộc trò chuyện.' });
   }
 };
+
+// Lấy danh sách nhân sự hỗ trợ (Admin & CTV)
+exports.getSupportStaff = async (req, res) => {
+  try {
+    let staff = await prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'QTV', 'CTV'] },
+        status: 'ACTIVE'
+      },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        avatar: true,
+        role: true,
+        rating: true,
+        totalSold: true,
+        zalo: true,
+        facebook: true,
+        university: { select: { shortName: true, name: true } }
+      }
+    });
+
+    // Nếu trong DB chưa có user nào role ADMIN/CTV thì lấy user đầu tiên
+    if (staff.length === 0) {
+      const firstUser = await prisma.user.findFirst({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          avatar: true,
+          role: true,
+          rating: true,
+          totalSold: true,
+          zalo: true,
+          facebook: true,
+          university: { select: { shortName: true, name: true } }
+        }
+      });
+      if (firstUser) {
+        staff = [{ ...firstUser, role: 'ADMIN', fullName: firstUser.fullName || 'Admin UniMarket' }];
+      }
+    }
+
+    const admins = staff.filter(s => s.role === 'ADMIN');
+    const ctvs = staff.filter(s => s.role !== 'ADMIN');
+
+    res.json({
+      success: true,
+      admins: admins.length > 0 ? admins : staff,
+      ctvs: ctvs.length > 0 ? ctvs : staff
+    });
+  } catch (err) {
+    console.error('getSupportStaff error:', err);
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách hỗ trợ viên.' });
+  }
+};
+
+// Bắt đầu cuộc trò chuyện hỗ trợ trực tiếp hoặc đăng ký VIP Slot
+exports.startSupportConversation = async (req, res) => {
+  try {
+    const { staffId, topic, initialMessage, slotNumber } = req.body;
+    const userId = req.user.id;
+
+    if (!staffId) {
+      return res.status(400).json({ message: 'Vui lòng chọn nhân viên hỗ trợ.' });
+    }
+
+    if (staffId === userId) {
+      return res.status(400).json({ message: 'Bạn không thể tự chat hỗ trợ với chính mình.' });
+    }
+
+    const staffUser = await prisma.user.findUnique({
+      where: { id: staffId },
+      select: { id: true, fullName: true, username: true, role: true }
+    });
+
+    if (!staffUser) {
+      return res.status(404).json({ message: 'Không tìm thấy tài khoản hỗ trợ viên.' });
+    }
+
+    // Tìm product của staff hoặc user, hoặc product hệ thống
+    let product = await prisma.product.findFirst({
+      where: { sellerId: staffId }
+    });
+
+    if (!product) {
+      product = await prisma.product.findFirst({
+        where: { sellerId: userId }
+      });
+    }
+
+    if (!product) {
+      product = await prisma.product.findFirst({
+        where: { status: 'ACTIVE' }
+      });
+    }
+
+    if (!product) {
+      let cat = await prisma.category.findFirst();
+      if (!cat) {
+        cat = await prisma.category.create({
+          data: { name: 'Dịch vụ sinh viên', slug: 'dich-vu-sinh-vien' }
+        });
+      }
+      product = await prisma.product.create({
+        data: {
+          title: 'Trung Tâm Hỗ Trợ & Đăng Ký VIP UniMarket',
+          description: 'Kênh hỗ trợ trực tiếp từ Ban Quản Trị và CTV UniMarket',
+          price: 0,
+          isFree: true,
+          condition: 'NEW',
+          status: 'ACTIVE',
+          sellerId: staffId,
+          categoryId: cat.id,
+          district: 'Hai Bà Trưng',
+          meetingSpotType: 'CAMPUS'
+        }
+      });
+    }
+
+    // Tìm hoặc tạo cuộc trò chuyện
+    let conversation = await prisma.conversation.findFirst({
+      where: {
+        productId: product.id,
+        OR: [
+          { buyerId: userId, sellerId: staffId },
+          { buyerId: staffId, sellerId: userId }
+        ]
+      },
+      include: {
+        product: { include: { images: { take: 1 }, seller: { select: { fullName: true } } } },
+        buyer: { select: { id: true, fullName: true, username: true, avatar: true } },
+        seller: { select: { id: true, fullName: true, username: true, avatar: true } }
+      }
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: {
+          productId: product.id,
+          buyerId: userId,
+          sellerId: staffId
+        },
+        include: {
+          product: { include: { images: { take: 1 }, seller: { select: { fullName: true } } } },
+          buyer: { select: { id: true, fullName: true, username: true, avatar: true } },
+          seller: { select: { id: true, fullName: true, username: true, avatar: true } }
+        }
+      });
+    }
+
+    // Gửi tin nhắn mở đầu nếu cần
+    const textToSend = initialMessage || (slotNumber 
+      ? `👋 Chào ${staffUser.role === 'ADMIN' ? 'Admin' : 'bạn CTV'}, mình muốn đăng ký hiển thị trên Slot VIP #${String(slotNumber).padStart(2, '0')}. Tư vấn duyệt slot giúp mình nhé!`
+      : `👋 Chào ${staffUser.role === 'ADMIN' ? 'Admin' : 'bạn CTV'}, mình cần hỗ trợ về: ${topic || 'Hỗ trợ dịch vụ Chợ Sinh Viên UniMarket'}.`
+    );
+
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: userId,
+        text: textToSend,
+        isRead: false
+      }
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: new Date() }
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conversation_${conversation.id}`).emit('new_message', message);
+      io.to(`user_${staffId}`).emit('notification', {
+        title: `Hỗ trợ mới từ ${req.user.fullName}`,
+        content: textToSend,
+        type: 'MESSAGE',
+        conversationId: conversation.id
+      });
+    }
+
+    res.json({
+      success: true,
+      conversationId: conversation.id,
+      conversation,
+      message
+    });
+  } catch (err) {
+    console.error('startSupportConversation error:', err);
+    res.status(500).json({ message: 'Lỗi khi khởi tạo cuộc trò chuyện hỗ trợ.' });
+  }
+};

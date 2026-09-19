@@ -8,16 +8,18 @@ import {
   MapPin, 
   GraduationCap, 
   ArrowRight, 
-  ChevronLeft,
-  ChevronRight,
-  Star,
-  Store,
-  Package,
-  Heart,
-  Search,
-  Award
+  ChevronLeft, 
+  ChevronRight, 
+  Star, 
+  Store, 
+  Package, 
+  Heart, 
+  Search, 
+  Award,
+  MessageSquare
 } from 'lucide-react';
 import ProductCard from '../components/common/ProductCard';
+import VipSlotContactModal from '../components/common/VipSlotContactModal';
 import api from '../api';
 
 // Helper: Build exactly 20 slots for Products (filled with actual items or styled VIP placeholders)
@@ -85,86 +87,67 @@ function build20ShopSlots(shops) {
 }
 
 // -------------------------------------------------------------
-// Component: Featured Products Carousel (Always 20 Slots, Auto Slide, Mobile Swipe)
+// Component: Featured Products Carousel (20 Slots, Smooth Continuous Gliding, Pause on Hover)
 // -------------------------------------------------------------
 function FeaturedProductsCarousel({ products = [] }) {
-  const [startIndex, setStartIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const touchStartX = useRef(null);
-  const touchEndX = useRef(null);
+  const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(1);
+  const scrollContainerRef = useRef(null);
 
   const allSlots = build20ProductSlots(products);
-  const total = allSlots.length; // Always 20
   const activeCount = (products || []).length;
 
-  // Determine visible count based on screen width
-  const [visibleCount, setVisibleCount] = useState(5);
+  // Duplicate slots to create seamless infinite loop
+  const displaySlots = [...allSlots, ...allSlots];
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 640) setVisibleCount(1);
-      else if (window.innerWidth < 1024) setVisibleCount(3);
-      else setVisibleCount(5);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Continuous Auto Slide
+  // Smooth continuous auto-glide
   useEffect(() => {
     if (isHovered) return;
 
-    const timer = setInterval(() => {
-      setStartIndex((prev) => (prev + 1) % total);
-    }, 3500);
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-    return () => clearInterval(timer);
-  }, [total, isHovered]);
+    let animationId;
+    const speed = 0.85; // Balanced steady glide speed
 
-  const handlePrev = () => {
-    setStartIndex((prev) => (prev - 1 + total) % total);
+    const glide = () => {
+      if (!isHovered && container) {
+        container.scrollLeft += speed;
+        if (container.scrollLeft >= container.scrollWidth / 2) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(glide);
+    };
+
+    animationId = requestAnimationFrame(glide);
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [isHovered]);
+
+  const handleManualScroll = (direction) => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -320 : 320;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
   };
 
-  const handleNext = () => {
-    setStartIndex((prev) => (prev + 1) % total);
+  const handleOpenVipSlot = (slotNum) => {
+    setSelectedSlot(slotNum);
+    setVipModalOpen(true);
   };
-
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-    const distance = touchStartX.current - touchEndX.current;
-    if (distance > 50) handleNext();
-    else if (distance < -50) handlePrev();
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
-
-  // Slice 20 items with wrap-around
-  const displayItems = [];
-  const countToTake = Math.min(total, visibleCount);
-  for (let i = 0; i < countToTake; i++) {
-    const idx = (startIndex + i) % total;
-    displayItems.push(allSlots[idx]);
-  }
 
   return (
     <section 
-      className="relative bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-amber-500/20 shadow-sm"
+      className="relative bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-amber-500/20 shadow-sm overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchStart={() => setIsHovered(true)}
+      onTouchEnd={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <span className="bg-amber-500 text-slate-900 text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
@@ -176,40 +159,41 @@ function FeaturedProductsCarousel({ products = [] }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Tuyển chọn đặc biệt bởi Admin &amp; CTV UniMarket ({activeCount}/20 Slot đang hoạt động - Tự động luân chuyển liên tục)
+            Tự động luân chuyển liên tục toàn bộ 20 Slot ({activeCount}/20 Đã đăng ký • Rê chuột để dừng xem)
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handlePrev}
-              className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-              title="Sản phẩm trước"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleNext}
-              className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-              title="Sản phẩm tiếp theo"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleManualScroll('left')}
+            className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Cuộn sang trái"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleManualScroll('right')}
+            className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Cuộn sang phải"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {displayItems.map((prod, idx) => {
-          const slotNum = String(prod.slotNumber || idx + 1).padStart(2, '0');
+      {/* Smooth Auto-Gliding Carousel Ribbon */}
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-3.5 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 touch-pan-x select-none"
+      >
+        {displaySlots.map((prod, idx) => {
+          const slotNum = String(prod.slotNumber || (idx % 20) + 1).padStart(2, '0');
 
           if (prod.isPlaceholder) {
             return (
               <div
-                key={`placeholder-p-${prod.slotNumber}-${idx}`}
-                className="group relative bg-gradient-to-b from-white via-amber-50/30 to-amber-100/40 rounded-2xl border-2 border-dashed border-amber-300 hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 flex flex-col justify-between p-4 text-center min-h-[290px]"
+                key={`p-ph-${prod.slotNumber}-${idx}`}
+                className="group relative min-w-[210px] sm:min-w-[230px] max-w-[230px] bg-gradient-to-b from-white via-amber-50/40 to-amber-100/40 rounded-2xl border-2 border-dashed border-amber-300 hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/15 transition-all duration-300 flex flex-col justify-between p-4 text-center min-h-[290px] shrink-0"
               >
                 {/* Top Badge */}
                 <div className="flex items-center justify-between">
@@ -232,19 +216,20 @@ function FeaturedProductsCarousel({ products = [] }) {
                       Vị Trí SP Nổi Bật #{slotNum}
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                      Đưa sản phẩm lên vị trí VIP đầu trang tiếp cận 10.000+ sinh viên
+                      Ghim đầu trang tiếp cận 10.000+ sinh viên
                     </p>
                   </div>
                 </div>
 
-                {/* Action CTA */}
-                <Link
-                  to="/messages"
-                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                {/* Action Button: Opens Support / Admin / CTV Selector Modal */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenVipSlot(prod.slotNumber)}
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                 >
+                  <MessageSquare className="w-3.5 h-3.5" />
                   <span>Đăng ký Slot này</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                </button>
               </div>
             );
           }
@@ -253,8 +238,8 @@ function FeaturedProductsCarousel({ products = [] }) {
 
           return (
             <div
-              key={`${prod.id}-${idx}`}
-              className="group relative bg-white rounded-2xl border border-slate-200/80 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 flex flex-col overflow-hidden"
+              key={`p-real-${prod.id}-${idx}`}
+              className="group relative min-w-[210px] sm:min-w-[230px] max-w-[230px] bg-white rounded-2xl border border-slate-200/80 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 flex flex-col justify-between overflow-hidden shrink-0"
             >
               {/* Image & Slot Badge */}
               <Link to={`/product/${prod.id}`} className="relative block aspect-[4/3] bg-slate-100 overflow-hidden">
@@ -265,7 +250,6 @@ function FeaturedProductsCarousel({ products = [] }) {
                   loading="lazy"
                 />
 
-                {/* Top badges */}
                 <div className="absolute top-2 left-2 flex items-center gap-1">
                   <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
                     <Star className="w-3 h-3 fill-current" />
@@ -303,7 +287,6 @@ function FeaturedProductsCarousel({ products = [] }) {
                   </Link>
                 </div>
 
-                {/* Footer snippet */}
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                   <span className="truncate max-w-[110px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">
                     🏫 {prod.university?.shortName || prod.district || 'Hà Nội'}
@@ -315,83 +298,84 @@ function FeaturedProductsCarousel({ products = [] }) {
                   )}
                 </div>
               </div>
-
             </div>
           );
         })}
       </div>
+
+      {/* VIP Slot Contact Modal */}
+      <VipSlotContactModal
+        isOpen={vipModalOpen}
+        onClose={() => setVipModalOpen(false)}
+        slotNumber={selectedSlot}
+        slotType="product"
+      />
     </section>
   );
 }
 
 // -------------------------------------------------------------
-// Component: Featured Shops Carousel (Always 20 Slots, Auto Slide)
+// Component: Featured Shops Carousel (20 Slots, Smooth Continuous Gliding, Pause on Hover)
 // -------------------------------------------------------------
 function FeaturedShopsCarousel({ shops = [] }) {
-  const [startIndex, setStartIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const touchStartX = useRef(null);
-  const touchEndX = useRef(null);
+  const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(1);
+  const scrollContainerRef = useRef(null);
 
   const allSlots = build20ShopSlots(shops);
-  const total = allSlots.length; // Always 20
   const activeCount = (shops || []).length;
-  const [visibleCount, setVisibleCount] = useState(5);
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 640) setVisibleCount(1);
-      else if (window.innerWidth < 1024) setVisibleCount(3);
-      else setVisibleCount(5);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Duplicate slots to create seamless infinite loop
+  const displaySlots = [...allSlots, ...allSlots];
 
-  // Continuous Auto Slide
+  // Smooth continuous auto-glide
   useEffect(() => {
     if (isHovered) return;
 
-    const timer = setInterval(() => {
-      setStartIndex((prev) => (prev + 1) % total);
-    }, 4000);
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-    return () => clearInterval(timer);
-  }, [total, isHovered]);
+    let animationId;
+    const speed = 0.85; // Balanced steady glide speed
 
-  const handlePrev = () => {
-    setStartIndex((prev) => (prev - 1 + total) % total);
+    const glide = () => {
+      if (!isHovered && container) {
+        container.scrollLeft += speed;
+        if (container.scrollLeft >= container.scrollWidth / 2) {
+          container.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(glide);
+    };
+
+    animationId = requestAnimationFrame(glide);
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [isHovered]);
+
+  const handleManualScroll = (direction) => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = direction === 'left' ? -300 : 300;
+      scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
   };
 
-  const handleNext = () => {
-    setStartIndex((prev) => (prev + 1) % total);
+  const handleOpenVipSlot = (slotNum) => {
+    setSelectedSlot(slotNum);
+    setVipModalOpen(true);
   };
-
-  const displayItems = [];
-  const countToTake = Math.min(total, visibleCount);
-  for (let i = 0; i < countToTake; i++) {
-    const idx = (startIndex + i) % total;
-    displayItems.push(allSlots[idx]);
-  }
 
   return (
     <section 
-      className="relative bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-indigo-500/20 shadow-sm"
+      className="relative bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent p-4 sm:p-6 rounded-3xl border border-indigo-500/20 shadow-sm overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={(e) => { touchStartX.current = e.targetTouches[0].clientX; }}
-      onTouchMove={(e) => { touchEndX.current = e.targetTouches[0].clientX; }}
-      onTouchEnd={() => {
-        if (!touchStartX.current || !touchEndX.current) return;
-        const dist = touchStartX.current - touchEndX.current;
-        if (dist > 50) handleNext();
-        else if (dist < -50) handlePrev();
-        touchStartX.current = null;
-        touchEndX.current = null;
-      }}
+      onTouchStart={() => setIsHovered(true)}
+      onTouchEnd={() => setIsHovered(false)}
     >
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
             <span className="bg-indigo-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
@@ -403,40 +387,41 @@ function FeaturedShopsCarousel({ shops = [] }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Các gian hàng &amp; người bán uy tín được chứng thực bởi Admin ({activeCount}/20 Gian hàng - Tự động luân chuyển liên tục)
+            Tự động luân chuyển liên tục toàn bộ 20 Gian hàng ({activeCount}/20 Đã chứng thực • Rê chuột để dừng xem)
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handlePrev}
-              className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-              title="Gian hàng trước"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleNext}
-              className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-              title="Gian hàng tiếp theo"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleManualScroll('left')}
+            className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Cuộn sang trái"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleManualScroll('right')}
+            className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Cuộn sang phải"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Shops Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {displayItems.map((shop, idx) => {
-          const slotNum = String(shop.slotNumber || idx + 1).padStart(2, '0');
+      {/* Smooth Auto-Gliding Shops Ribbon */}
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-3.5 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 touch-pan-x select-none"
+      >
+        {displaySlots.map((shop, idx) => {
+          const slotNum = String(shop.slotNumber || (idx % 20) + 1).padStart(2, '0');
 
           if (shop.isPlaceholder) {
             return (
               <div
-                key={`placeholder-s-${shop.slotNumber}-${idx}`}
-                className="group relative bg-gradient-to-b from-white via-indigo-50/30 to-indigo-100/40 rounded-2xl border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col justify-between items-center text-center p-4 min-h-[260px]"
+                key={`s-ph-${shop.slotNumber}-${idx}`}
+                className="group relative min-w-[200px] sm:min-w-[220px] max-w-[220px] bg-gradient-to-b from-white via-indigo-50/40 to-indigo-100/40 rounded-2xl border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/15 transition-all duration-300 flex flex-col justify-between items-center text-center p-4 min-h-[260px] shrink-0"
               >
                 {/* Slot Badge */}
                 <div className="w-full flex items-center justify-between">
@@ -458,19 +443,20 @@ function FeaturedShopsCarousel({ shops = [] }) {
                       Gian Hàng VIP #{slotNum}
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                      Đăng ký chứng thực Top Shop sinh viên uy tín
+                      Chứng thực Top Shop sinh viên uy tín
                     </p>
                   </div>
                 </div>
 
-                {/* CTA Button */}
-                <Link
-                  to="/messages"
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                {/* CTA Button: Opens Support / Admin / CTV Selector Modal */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenVipSlot(shop.slotNumber)}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
                 >
+                  <MessageSquare className="w-3.5 h-3.5" />
                   <span>Đăng ký Top Shop</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                </button>
               </div>
             );
           }
@@ -479,8 +465,8 @@ function FeaturedShopsCarousel({ shops = [] }) {
 
           return (
             <div
-              key={`${shop.id}-${idx}`}
-              className="bg-white rounded-2xl border border-slate-200/80 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 p-4 flex flex-col justify-between items-center text-center transition-all duration-300 relative group"
+              key={`s-real-${shop.id}-${idx}`}
+              className="bg-white rounded-2xl border border-slate-200/80 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 p-4 flex flex-col justify-between items-center text-center transition-all duration-300 relative group min-w-[200px] sm:min-w-[220px] max-w-[220px] shrink-0"
             >
               {/* Slot Badge */}
               <div className="absolute top-2.5 left-2.5">
@@ -533,6 +519,14 @@ function FeaturedShopsCarousel({ shops = [] }) {
           );
         })}
       </div>
+
+      {/* VIP Slot Contact Modal */}
+      <VipSlotContactModal
+        isOpen={vipModalOpen}
+        onClose={() => setVipModalOpen(false)}
+        slotNumber={selectedSlot}
+        slotType="shop"
+      />
     </section>
   );
 }
