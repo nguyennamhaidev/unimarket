@@ -1,8 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Store, ChevronLeft, ChevronRight, Star, GraduationCap, Sparkles } from 'lucide-react';
+import { Store, ChevronLeft, ChevronRight, Star, ArrowRight, Sparkles } from 'lucide-react';
 import api from '../../api';
 import { getImageUrl, handleImageError, DEFAULT_AVATAR } from '../../utils/imageHelper';
+
+function build20ShopSlots(shops) {
+  const slots = Array.from({ length: 20 }, (_, index) => {
+    const slotNum = index + 1;
+    return {
+      id: `placeholder-shop-${slotNum}`,
+      slotNumber: slotNum,
+      isPlaceholder: true,
+      fullName: `Gian Hàng VIP #${String(slotNum).padStart(2, '0')}`,
+    };
+  });
+
+  const unassigned = [];
+  (shops || []).forEach((shop) => {
+    if (shop.slotNumber && shop.slotNumber >= 1 && shop.slotNumber <= 20) {
+      slots[shop.slotNumber - 1] = { ...shop, isPlaceholder: false };
+    } else {
+      unassigned.push(shop);
+    }
+  });
+
+  let unassignedIdx = 0;
+  for (let i = 0; i < 20 && unassignedIdx < unassigned.length; i++) {
+    if (slots[i].isPlaceholder) {
+      slots[i] = { ...unassigned[unassignedIdx], slotNumber: i + 1, isPlaceholder: false };
+      unassignedIdx++;
+    }
+  }
+
+  return slots;
+}
 
 export default function FeaturedShopsCarousel() {
   const [shops, setShops] = useState([]);
@@ -25,15 +56,17 @@ export default function FeaturedShopsCarousel() {
     }
   };
 
+  const allSlots = build20ShopSlots(shops);
+  const activeCount = shops.length;
+
   // Auto-scroll loop
   useEffect(() => {
-    if (shops.length <= 3 || isPaused) return;
+    if (isPaused) return;
 
     const interval = setInterval(() => {
       if (scrollContainerRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
         if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          // Wrap around to start smoothly
           scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
           scrollContainerRef.current.scrollBy({ left: 240, behavior: 'smooth' });
@@ -42,7 +75,7 @@ export default function FeaturedShopsCarousel() {
     }, 3500);
 
     return () => clearInterval(interval);
-  }, [shops, isPaused]);
+  }, [isPaused]);
 
   const handleScroll = (direction) => {
     if (scrollContainerRef.current) {
@@ -64,10 +97,6 @@ export default function FeaturedShopsCarousel() {
     );
   }
 
-  if (shops.length === 0) {
-    return null; // Don't render section if admin hasn't selected any featured shops
-  }
-
   return (
     <section 
       className="relative bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-teal-500/10 p-5 sm:p-6 rounded-3xl border border-amber-200/80 shadow-sm overflow-hidden"
@@ -86,11 +115,11 @@ export default function FeaturedShopsCarousel() {
                 GIAN HÀNG NỔI BẬT
               </h2>
               <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                {shops.length} / 20 TOP SHOP
+                {activeCount} / 20 TOP SHOP
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Các bạn sinh viên uy tín, phản hồi nhanh và được Ban Quản Trị đề xuất
+              Các bạn sinh viên uy tín, phản hồi nhanh và được Ban Quản Trị đề xuất (Tự động luân chuyển liên tục)
             </p>
           </div>
         </div>
@@ -120,7 +149,42 @@ export default function FeaturedShopsCarousel() {
         className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth no-scrollbar py-1 px-0.5 touch-pan-x"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {shops.map((shop) => {
+        {allSlots.map((shop, idx) => {
+          const slotNum = String(shop.slotNumber || idx + 1).padStart(2, '0');
+
+          if (shop.isPlaceholder) {
+            return (
+              <div
+                key={`ph-s-${shop.slotNumber}-${idx}`}
+                className="min-w-[200px] sm:min-w-[220px] max-w-[220px] bg-gradient-to-b from-white to-indigo-50/50 rounded-2xl p-4 border-2 border-dashed border-indigo-300 flex flex-col justify-between items-center text-center shrink-0 min-h-[230px]"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                <div className="w-full flex items-center justify-between">
+                  <span className="bg-indigo-100 text-indigo-900 text-[10px] font-black px-2 py-0.5 rounded-md">
+                    Shop {slotNum}
+                  </span>
+                  <span className="text-[9px] font-bold text-indigo-700 bg-indigo-200/60 px-1.5 py-0.2 rounded">
+                    Đang mở
+                  </span>
+                </div>
+
+                <div className="my-auto py-2 space-y-1">
+                  <div className="text-2xl">🏬</div>
+                  <h4 className="font-bold text-xs text-slate-800">Gian Hàng #{slotNum}</h4>
+                  <p className="text-[10px] text-slate-500">Đăng ký chứng thực Top Shop</p>
+                </div>
+
+                <Link
+                  to="/messages"
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl transition-all shadow-xs flex items-center justify-center gap-1"
+                >
+                  <span>Đăng ký Top Shop</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            );
+          }
+
           const avatarUrl = getImageUrl(shop.avatar, DEFAULT_AVATAR);
           return (
             <Link

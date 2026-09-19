@@ -49,6 +49,7 @@ export default function ChatPage() {
   const [reviewedSuccess, setReviewedSuccess] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -133,8 +134,13 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = true) => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
   };
 
   const fetchConversations = async () => {
@@ -580,7 +586,10 @@ export default function ChatPage() {
             )}
 
             {/* Messages Thread */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar bg-slate-50/30">
+            <div 
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar bg-slate-50/30"
+            >
               {loadingMessages ? (
                 <div className="text-center py-10 text-xs text-slate-400">Đang tải tin nhắn...</div>
               ) : messages.length === 0 ? (

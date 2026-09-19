@@ -1,12 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Flame, ChevronLeft, ChevronRight, Heart, MapPin, Sparkles } from 'lucide-react';
+import { Flame, ChevronLeft, ChevronRight, Star, ArrowRight } from 'lucide-react';
 import api from '../../api';
 import { getImageUrl, handleImageError, DEFAULT_PRODUCT_IMAGE } from '../../utils/imageHelper';
-import { useAuth } from '../../context/AuthContext';
+
+function build20ProductSlots(products) {
+  const slots = Array.from({ length: 20 }, (_, index) => {
+    const slotNum = index + 1;
+    return {
+      id: `placeholder-prod-${slotNum}`,
+      slotNumber: slotNum,
+      isPlaceholder: true,
+      title: `Slot VIP #${String(slotNum).padStart(2, '0')}`,
+    };
+  });
+
+  const unassigned = [];
+  (products || []).forEach((prod) => {
+    if (prod.slotNumber && prod.slotNumber >= 1 && prod.slotNumber <= 20) {
+      slots[prod.slotNumber - 1] = { ...prod, isPlaceholder: false };
+    } else {
+      unassigned.push(prod);
+    }
+  });
+
+  let unassignedIdx = 0;
+  for (let i = 0; i < 20 && unassignedIdx < unassigned.length; i++) {
+    if (slots[i].isPlaceholder) {
+      slots[i] = { ...unassigned[unassignedIdx], slotNumber: i + 1, isPlaceholder: false };
+      unassignedIdx++;
+    }
+  }
+
+  return slots;
+}
 
 export default function FeaturedProductsCarousel() {
-  const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -27,9 +56,12 @@ export default function FeaturedProductsCarousel() {
     }
   };
 
+  const allSlots = build20ProductSlots(products);
+  const activeCount = products.length;
+
   // Auto-scroll loop
   useEffect(() => {
-    if (products.length <= 4 || isPaused) return;
+    if (isPaused) return;
 
     const interval = setInterval(() => {
       if (scrollContainerRef.current) {
@@ -40,10 +72,10 @@ export default function FeaturedProductsCarousel() {
           scrollContainerRef.current.scrollBy({ left: 260, behavior: 'smooth' });
         }
       }
-    }, 4000);
+    }, 3500);
 
     return () => clearInterval(interval);
-  }, [products, isPaused]);
+  }, [isPaused]);
 
   const handleScroll = (direction) => {
     if (scrollContainerRef.current) {
@@ -55,14 +87,6 @@ export default function FeaturedProductsCarousel() {
   const formatPrice = (p) => {
     if (p.isFree || p.price === 0) return 'Tặng miễn phí 0đ';
     return new Intl.NumberFormat('vi-VN').format(p.price) + ' đ';
-  };
-
-  const conditionLabels = {
-    NEW: 'Mới 100%',
-    LIKE_NEW: 'Như mới 99%',
-    GOOD: 'Dùng tốt',
-    USED: 'Đã dùng',
-    OLD: 'Cũ / Pass nhanh'
   };
 
   if (loading) {
@@ -78,13 +102,9 @@ export default function FeaturedProductsCarousel() {
     );
   }
 
-  if (products.length === 0) {
-    return null; // Don't render section if admin hasn't selected any featured products
-  }
-
   return (
     <section 
-      className="relative bg-white p-5 sm:p-6 rounded-3xl border border-rose-200/70 shadow-sm overflow-hidden"
+      className="relative bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6 rounded-3xl border border-amber-300/60 shadow-sm overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -99,12 +119,12 @@ export default function FeaturedProductsCarousel() {
               <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
                 SẢN PHẨM NỔI BẬT
               </h2>
-              <span className="bg-rose-100 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                {products.length} / 20 HOT DEALS
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                {activeCount} / 20 SLOT HOẠT ĐỘNG
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Được tuyển chọn đặc biệt dành cho sinh viên, giá tốt và tình trạng kiểm định rõ ràng
+              Được tuyển chọn đặc biệt dành cho sinh viên, giá tốt và tình trạng kiểm định rõ ràng (Tự động luân chuyển liên tục)
             </p>
           </div>
         </div>
@@ -134,12 +154,48 @@ export default function FeaturedProductsCarousel() {
         className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth no-scrollbar py-1 px-0.5 touch-pan-x"
         style={{ scrollSnapType: 'x mandatory' }}
       >
-        {products.map((product) => {
+        {allSlots.map((product, idx) => {
+          const slotNum = String(product.slotNumber || idx + 1).padStart(2, '0');
+
+          if (product.isPlaceholder) {
+            return (
+              <div
+                key={`ph-${product.slotNumber}-${idx}`}
+                className="min-w-[210px] sm:min-w-[230px] max-w-[230px] bg-gradient-to-b from-white to-amber-50/50 rounded-2xl border-2 border-dashed border-amber-300 p-4 flex flex-col justify-between text-center shrink-0 min-h-[290px]"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-current text-amber-600" />
+                    <span>Slot {slotNum}</span>
+                  </span>
+                  <span className="text-[9px] font-bold text-amber-700 bg-amber-200/60 px-1.5 py-0.2 rounded">
+                    Đang mở
+                  </span>
+                </div>
+
+                <div className="my-auto py-2 space-y-1">
+                  <div className="text-2xl">✨</div>
+                  <h4 className="font-bold text-xs text-slate-800">Vị Trí SP VIP #{slotNum}</h4>
+                  <p className="text-[10px] text-slate-500">Tiếp cận 10.000+ sinh viên</p>
+                </div>
+
+                <Link
+                  to="/messages"
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl transition-all shadow-xs flex items-center justify-center gap-1"
+                >
+                  <span>Đăng ký Slot</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            );
+          }
+
           const mainImage = getImageUrl(product.images?.[0]?.url, DEFAULT_PRODUCT_IMAGE);
           return (
             <div
               key={product.id}
-              className="group min-w-[210px] sm:min-w-[230px] max-w-[230px] bg-slate-50/50 hover:bg-white rounded-2xl border border-slate-200/80 hover:border-rose-300 hover:shadow-lg hover:shadow-rose-500/5 transition-all duration-200 flex flex-col justify-between overflow-hidden shrink-0"
+              className="group min-w-[210px] sm:min-w-[230px] max-w-[230px] bg-slate-50/50 hover:bg-white rounded-2xl border border-slate-200/80 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 flex flex-col justify-between overflow-hidden shrink-0"
               style={{ scrollSnapAlign: 'start' }}
             >
               {/* Product Image */}
@@ -154,8 +210,8 @@ export default function FeaturedProductsCarousel() {
 
                 {/* Condition Badge */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
-                  <span className="bg-slate-900/80 backdrop-blur text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                    {conditionLabels[product.condition] || product.condition}
+                  <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                    Slot {slotNum}
                   </span>
                 </div>
 

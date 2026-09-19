@@ -678,3 +678,113 @@ exports.getMyFavorites = async (req, res) => {
     res.status(500).json({ message: 'Lỗi khi tải danh sách yêu thích.' });
   }
 };
+
+// Gợi ý sản phẩm ngẫu nhiên: 30% ưu tiên từ các gian hàng uy tín/nhiều đơn bán và 70% từ các sản phẩm sinh viên khác
+exports.getRecommendedProducts = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 12;
+    const topShopCount = Math.max(1, Math.round(limit * 0.3)); // 30%
+    const standardCount = limit - topShopCount; // 70%
+
+    // 1. Lấy pool sản phẩm từ các shop uy tín (đã bán > 0, rating cao hoặc QTV/ADMIN)
+    const topSellerProducts = await prisma.product.findMany({
+      where: {
+        status: 'ACTIVE',
+        seller: {
+          OR: [
+            { totalSold: { gt: 0 } },
+            { rating: { gte: 4.5 } },
+            { role: { in: ['QTV', 'ADMIN'] } }
+          ]
+        }
+      },
+      take: 40,
+      include: {
+        images: { orderBy: [{ isPrimary: 'desc' }, { order: 'asc' }] },
+        category: true,
+        university: true,
+        seller: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            avatar: true,
+            rating: true,
+            totalSold: true,
+            university: true
+          }
+        },
+        _count: { select: { favorites: true } }
+      }
+    });
+
+    // 2. Lấy pool các sản phẩm active khác
+    const otherProducts = await prisma.product.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      take: 60,
+      include: {
+        images: { orderBy: [{ isPrimary: 'desc' }, { order: 'asc' }] },
+        category: true,
+        university: true,
+        seller: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            avatar: true,
+            rating: true,
+            totalSold: true,
+            university: true
+          }
+        },
+        _count: { select: { favorites: true } }
+      }
+    });
+
+    // Fisher-Yates shuffle
+    const shuffle = (array) => {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+
+    // Chọn ngẫu nhiên 30% từ top seller
+    const shuffledTop = shuffle(topSellerProducts);
+    const selectedTop = shuffledTop.slice(0, topShopCount);
+    const selectedTopIds = new Set(selectedTop.map(p => p.id));
+
+    // Lọc và chọn 70% còn lại từ các sản phẩm khác
+    const remainingOther = otherProducts.filter(p => !selectedTopIds.has(p.id));
+    const shuffledOther = shuffle(remainingOther);
+    const selectedOther = shuffledOther.slice(0, standardCount);
+
+    // Trộn ngẫu nhiên kết quả
+    let finalRecommended = shuffle([...selectedTop, ...selectedOther]);
+
+    // Nếu ít hơn limit (khi mới có ít sản phẩm), bổ sung nốt từ các sản phẩm active
+    if (finalRecommended.length < limit && otherProducts.length > 0) {
+      const existingIds = new Set(finalRecommended.map(p => p.id));
+      for (const p of shuffle(otherProducts)) {
+        if (!existingIds.has(p.id)) {
+          finalRecommended.push(p);
+          existingIds.add(p.id);
+          if (finalRecommended.length >= limit) break;
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      count: finalRecommended.length,
+      products: finalRecommended
+    });
+  } catch (err) {
+    console.error('getRecommendedProducts error:', err);
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách sản phẩm gợi ý.' });
+  }
+};

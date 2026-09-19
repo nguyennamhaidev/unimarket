@@ -20,17 +20,84 @@ import {
 import ProductCard from '../components/common/ProductCard';
 import api from '../api';
 
+// Helper: Build exactly 20 slots for Products (filled with actual items or styled VIP placeholders)
+function build20ProductSlots(products) {
+  const slots = Array.from({ length: 20 }, (_, index) => {
+    const slotNum = index + 1;
+    return {
+      id: `placeholder-prod-${slotNum}`,
+      slotNumber: slotNum,
+      isPlaceholder: true,
+      title: `Slot VIP #${String(slotNum).padStart(2, '0')} - Ghim Top 1`,
+    };
+  });
+
+  const unassigned = [];
+  (products || []).forEach((prod) => {
+    if (prod.slotNumber && prod.slotNumber >= 1 && prod.slotNumber <= 20) {
+      slots[prod.slotNumber - 1] = { ...prod, isPlaceholder: false };
+    } else {
+      unassigned.push(prod);
+    }
+  });
+
+  let unassignedIdx = 0;
+  for (let i = 0; i < 20 && unassignedIdx < unassigned.length; i++) {
+    if (slots[i].isPlaceholder) {
+      slots[i] = { ...unassigned[unassignedIdx], slotNumber: i + 1, isPlaceholder: false };
+      unassignedIdx++;
+    }
+  }
+
+  return slots;
+}
+
+// Helper: Build exactly 20 slots for Shops (filled with actual items or styled VIP placeholders)
+function build20ShopSlots(shops) {
+  const slots = Array.from({ length: 20 }, (_, index) => {
+    const slotNum = index + 1;
+    return {
+      id: `placeholder-shop-${slotNum}`,
+      slotNumber: slotNum,
+      isPlaceholder: true,
+      fullName: `Gian Hàng VIP #${String(slotNum).padStart(2, '0')}`,
+    };
+  });
+
+  const unassigned = [];
+  (shops || []).forEach((shop) => {
+    if (shop.slotNumber && shop.slotNumber >= 1 && shop.slotNumber <= 20) {
+      slots[shop.slotNumber - 1] = { ...shop, isPlaceholder: false };
+    } else {
+      unassigned.push(shop);
+    }
+  });
+
+  let unassignedIdx = 0;
+  for (let i = 0; i < 20 && unassignedIdx < unassigned.length; i++) {
+    if (slots[i].isPlaceholder) {
+      slots[i] = { ...unassigned[unassignedIdx], slotNumber: i + 1, isPlaceholder: false };
+      unassignedIdx++;
+    }
+  }
+
+  return slots;
+}
+
 // -------------------------------------------------------------
-// Component: Featured Products Carousel (20 Slots, Auto Slide, Mobile Swipe)
+// Component: Featured Products Carousel (Always 20 Slots, Auto Slide, Mobile Swipe)
 // -------------------------------------------------------------
-function FeaturedProductsCarousel({ products }) {
+function FeaturedProductsCarousel({ products = [] }) {
   const [startIndex, setStartIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
-  const total = products.length;
-  // Determine visible count based on screen width (default desktop 5, tablet 3, mobile 1.5)
+  const allSlots = build20ProductSlots(products);
+  const total = allSlots.length; // Always 20
+  const activeCount = (products || []).length;
+
+  // Determine visible count based on screen width
   const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
@@ -44,18 +111,16 @@ function FeaturedProductsCarousel({ products }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Auto slide effect
+  // Continuous Auto Slide
   useEffect(() => {
-    if (total <= visibleCount || isHovered) return;
+    if (isHovered) return;
 
     const timer = setInterval(() => {
       setStartIndex((prev) => (prev + 1) % total);
     }, 3500);
 
     return () => clearInterval(timer);
-  }, [total, visibleCount, isHovered]);
-
-  if (!products || products.length === 0) return null;
+  }, [total, isHovered]);
 
   const handlePrev = () => {
     setStartIndex((prev) => (prev - 1 + total) % total);
@@ -82,12 +147,12 @@ function FeaturedProductsCarousel({ products }) {
     touchEndX.current = null;
   };
 
-  // Slice items with wrap-around
+  // Slice 20 items with wrap-around
   const displayItems = [];
   const countToTake = Math.min(total, visibleCount);
   for (let i = 0; i < countToTake; i++) {
     const idx = (startIndex + i) % total;
-    displayItems.push(products[idx]);
+    displayItems.push(allSlots[idx]);
   }
 
   return (
@@ -111,37 +176,80 @@ function FeaturedProductsCarousel({ products }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Tuyển chọn đặc biệt bởi Admin &amp; CTV UniMarket ({total}/20 Slot đang hoạt động)
+            Tuyển chọn đặc biệt bởi Admin &amp; CTV UniMarket ({activeCount}/20 Slot đang hoạt động - Tự động luân chuyển liên tục)
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {total > visibleCount && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handlePrev}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-                title="Sản phẩm trước"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleNext}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-                title="Sản phẩm tiếp theo"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePrev}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
+              title="Sản phẩm trước"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
+              title="Sản phẩm tiếp theo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {displayItems.map((prod, idx) => {
+          const slotNum = String(prod.slotNumber || idx + 1).padStart(2, '0');
+
+          if (prod.isPlaceholder) {
+            return (
+              <div
+                key={`placeholder-p-${prod.slotNumber}-${idx}`}
+                className="group relative bg-gradient-to-b from-white via-amber-50/30 to-amber-100/40 rounded-2xl border-2 border-dashed border-amber-300 hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 flex flex-col justify-between p-4 text-center min-h-[290px]"
+              >
+                {/* Top Badge */}
+                <div className="flex items-center justify-between">
+                  <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-lg flex items-center gap-1 border border-amber-300">
+                    <Star className="w-3 h-3 text-amber-600 fill-current" />
+                    <span>Slot {slotNum}</span>
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-200/70 px-1.5 py-0.5 rounded animate-pulse">
+                    Đang mở
+                  </span>
+                </div>
+
+                {/* Middle Icon & Text */}
+                <div className="my-auto py-2 space-y-2 flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform">
+                    ✨
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-slate-800 line-clamp-2">
+                      Vị Trí SP Nổi Bật #{slotNum}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+                      Đưa sản phẩm lên vị trí VIP đầu trang tiếp cận 10.000+ sinh viên
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action CTA */}
+                <Link
+                  to="/messages"
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                >
+                  <span>Đăng ký Slot này</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            );
+          }
+
           const imgUrl = prod.images?.[0]?.url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';
-          const slotNum = prod.slotNumber ? String(prod.slotNumber).padStart(2, '0') : String(idx + 1).padStart(2, '0');
 
           return (
             <div
@@ -217,15 +325,17 @@ function FeaturedProductsCarousel({ products }) {
 }
 
 // -------------------------------------------------------------
-// Component: Featured Shops Carousel (20 Slots, Auto Slide)
+// Component: Featured Shops Carousel (Always 20 Slots, Auto Slide)
 // -------------------------------------------------------------
-function FeaturedShopsCarousel({ shops }) {
+function FeaturedShopsCarousel({ shops = [] }) {
   const [startIndex, setStartIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
-  const total = shops.length;
+  const allSlots = build20ShopSlots(shops);
+  const total = allSlots.length; // Always 20
+  const activeCount = (shops || []).length;
   const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
@@ -239,17 +349,16 @@ function FeaturedShopsCarousel({ shops }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Continuous Auto Slide
   useEffect(() => {
-    if (total <= visibleCount || isHovered) return;
+    if (isHovered) return;
 
     const timer = setInterval(() => {
       setStartIndex((prev) => (prev + 1) % total);
     }, 4000);
 
     return () => clearInterval(timer);
-  }, [total, visibleCount, isHovered]);
-
-  if (!shops || shops.length === 0) return null;
+  }, [total, isHovered]);
 
   const handlePrev = () => {
     setStartIndex((prev) => (prev - 1 + total) % total);
@@ -263,7 +372,7 @@ function FeaturedShopsCarousel({ shops }) {
   const countToTake = Math.min(total, visibleCount);
   for (let i = 0; i < countToTake; i++) {
     const idx = (startIndex + i) % total;
-    displayItems.push(shops[idx]);
+    displayItems.push(allSlots[idx]);
   }
 
   return (
@@ -294,37 +403,79 @@ function FeaturedShopsCarousel({ shops }) {
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Các gian hàng &amp; người bán uy tín được chứng thực bởi Admin ({total}/20 Gian hàng)
+            Các gian hàng &amp; người bán uy tín được chứng thực bởi Admin ({activeCount}/20 Gian hàng - Tự động luân chuyển liên tục)
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          {total > visibleCount && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handlePrev}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-                title="Gian hàng trước"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleNext}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
-                title="Gian hàng tiếp theo"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePrev}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
+              title="Gian hàng trước"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 border border-slate-200 text-slate-700 flex items-center justify-center shadow-xs transition-all active:scale-95"
+              title="Gian hàng tiếp theo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Shops Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {displayItems.map((shop, idx) => {
+          const slotNum = String(shop.slotNumber || idx + 1).padStart(2, '0');
+
+          if (shop.isPlaceholder) {
+            return (
+              <div
+                key={`placeholder-s-${shop.slotNumber}-${idx}`}
+                className="group relative bg-gradient-to-b from-white via-indigo-50/30 to-indigo-100/40 rounded-2xl border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 flex flex-col justify-between items-center text-center p-4 min-h-[260px]"
+              >
+                {/* Slot Badge */}
+                <div className="w-full flex items-center justify-between">
+                  <span className="bg-indigo-100 text-indigo-900 text-[10px] font-black px-2 py-0.5 rounded-lg border border-indigo-300">
+                    Shop {slotNum}
+                  </span>
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-200/70 px-1.5 py-0.5 rounded animate-pulse">
+                    Đang mở
+                  </span>
+                </div>
+
+                {/* Avatar Icon */}
+                <div className="my-auto py-2 space-y-2 flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-700 flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform">
+                    🏬
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-slate-800">
+                      Gian Hàng VIP #{slotNum}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      Đăng ký chứng thực Top Shop sinh viên uy tín
+                    </p>
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <Link
+                  to="/messages"
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                >
+                  <span>Đăng ký Top Shop</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            );
+          }
+
           const avatarUrl = shop.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${shop.username}`;
-          const slotNum = shop.slotNumber ? String(shop.slotNumber).padStart(2, '0') : String(idx + 1).padStart(2, '0');
 
           return (
             <div
@@ -376,7 +527,7 @@ function FeaturedShopsCarousel({ shops }) {
                 className="mt-4 w-full py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 font-bold text-xs rounded-xl transition-all border border-indigo-200/60 flex items-center justify-center gap-1 shadow-2xs"
               >
                 <span>Xem gian hàng</span>
-                <ArrowRight className="w-3 h-3" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           );
@@ -396,10 +547,23 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [featuredShops, setFeaturedShops] = useState([]);
   const [freeProducts, setFreeProducts] = useState([]);
-  const [newestProducts, setNewestProducts] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [nearProducts, setNearProducts] = useState([]);
   const [activeUni, setActiveUni] = useState('');
   const [quickSearch, setQuickSearch] = useState('');
+
+  const fetchRecommendations = async () => {
+    setLoadingRecommended(true);
+    try {
+      const res = await api.get('/products/recommended?limit=12');
+      setRecommendedProducts(res.data.products || []);
+    } catch (err) {
+      console.error('Fetch recommendations error:', err);
+    } finally {
+      setLoadingRecommended(false);
+    }
+  };
 
   useEffect(() => {
     // 1. Fetch categories
@@ -414,8 +578,8 @@ export default function HomePage() {
     // 4. Featured Shops from /api/featured/shops (Admin/CTV curated - Max 20)
     api.get('/featured/shops').then(res => setFeaturedShops(res.data.featuredShops || [])).catch(console.error);
 
-    // 5. Newest products
-    api.get('/products?sortBy=newest&limit=8').then(res => setNewestProducts(res.data.products || [])).catch(console.error);
+    // 5. Recommended products (Random: 30% Top Sellers + 70% Other Active Products)
+    fetchRecommendations();
 
     // 6. Near items (Hai Bà Trưng / Cầu Giấy)
     api.get('/products?district=Hai Bà Trưng&limit=4').then(res => setNearProducts(res.data.products || [])).catch(console.error);
@@ -497,37 +661,64 @@ export default function HomePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
-        {/* 2. 🔥 SẢN PHẨM NỔI BẬT (Featured Products Carousel) */}
-        {featuredProducts.length > 0 && (
-          <FeaturedProductsCarousel products={featuredProducts} />
-        )}
+        {/* 2. 🔥 SẢN PHẨM NỔI BẬT (20 Slots Always Active) */}
+        <FeaturedProductsCarousel products={featuredProducts} />
 
-        {/* 3. ⭐ GIAN HÀNG NỔI BẬT (Featured Shops Carousel) */}
-        {featuredShops.length > 0 && (
-          <FeaturedShopsCarousel shops={featuredShops} />
-        )}
+        {/* 3. ⭐ GIAN HÀNG NỔI BẬT (20 Slots Always Active) */}
+        <FeaturedShopsCarousel shops={featuredShops} />
 
-        {/* 4. 🆕 SẢN PHẨM MỚI ĐĂNG */}
+        {/* 4. ✨ GỢI Ý DÀNH CHO BẠN (30% Top Sellers / 70% Sinh Viên) */}
         <section>
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Clock className="w-5 h-5 text-teal-600" />
-                <span>Sản Phẩm Mới Đăng</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Vừa được các bạn sinh viên đăng bán hôm nay</p>
+              <div className="flex items-center gap-2">
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 fill-white" />
+                  <span>DÀNH CHO BẠN</span>
+                </span>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Gợi Ý Dành Cho Bạn</span>
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Bốc ngẫu nhiên 30% từ các gian hàng uy tín &amp; 70% từ toàn bộ sản phẩm sinh viên trên hệ thống
+              </p>
             </div>
-            <Link to="/products?sortBy=newest" className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1">
-              <span>Xem tất cả</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={fetchRecommendations}
+                disabled={loadingRecommended}
+                className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 shadow-2xs cursor-pointer"
+                title="Bốc ngẫu nhiên gợi ý mới"
+              >
+                <span className={loadingRecommended ? 'animate-spin inline-block' : 'inline-block'}>🔄</span>
+                <span>Đổi gợi ý khác</span>
+              </button>
+              <Link to="/products" className="text-xs font-bold text-slate-600 hover:text-emerald-700 hover:underline flex items-center gap-1 ml-2">
+                <span>Xem tất cả</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {newestProducts.map(p => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          {loadingRecommended ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-64 bg-slate-100 rounded-2xl animate-pulse"></div>
+              ))}
+            </div>
+          ) : recommendedProducts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {recommendedProducts.map(p => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-100">
+              Đang làm mới các sản phẩm gợi ý...
+            </div>
+          )}
         </section>
 
         {/* 5. 📍 GẦN BẠN */}

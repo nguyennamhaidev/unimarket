@@ -70,9 +70,8 @@ function computeCountdown(startDate, endDate) {
 // 1. Public: Get active featured products for Homepage (Max 20)
 exports.getPublicFeaturedProducts = async (req, res) => {
   try {
-    // Run expiration check first
     const io = req.app.get('io');
-    await checkFeaturedExpirations(io);
+    if (io) checkFeaturedExpirations(io).catch(() => {});
 
     const now = new Date();
     const featured = await prisma.featuredProduct.findMany({
@@ -140,7 +139,7 @@ exports.getPublicFeaturedProducts = async (req, res) => {
 exports.getPublicFeaturedShops = async (req, res) => {
   try {
     const io = req.app.get('io');
-    await checkFeaturedExpirations(io);
+    if (io) checkFeaturedExpirations(io).catch(() => {});
 
     const now = new Date();
     const featured = await prisma.featuredShop.findMany({
@@ -208,7 +207,7 @@ exports.getPublicFeaturedShops = async (req, res) => {
 exports.getAdminFeaturedProducts = async (req, res) => {
   try {
     const io = req.app.get('io');
-    await checkFeaturedExpirations(io);
+    if (io) checkFeaturedExpirations(io).catch(() => {});
 
     const allAssigned = await prisma.featuredProduct.findMany({
       include: {
@@ -515,7 +514,7 @@ exports.removeFeaturedProduct = async (req, res) => {
 exports.getAdminFeaturedShops = async (req, res) => {
   try {
     const io = req.app.get('io');
-    await checkFeaturedExpirations(io);
+    if (io) checkFeaturedExpirations(io).catch(() => {});
 
     const allAssigned = await prisma.featuredShop.findMany({
       include: {
@@ -855,7 +854,7 @@ exports.searchProductsForFeatured = async (req, res) => {
 
     const products = await prisma.product.findMany({
       where: whereClause,
-      take: 20,
+      take: 50,
       orderBy: { createdAt: 'desc' },
       include: {
         images: { take: 1 },
@@ -889,11 +888,11 @@ exports.searchSellersForFeatured = async (req, res) => {
     const { query } = req.query;
     const q = query ? query.trim() : '';
 
-    let whereClause = { status: 'ACTIVE' };
+    let whereClause = { status: { not: 'BANNED' } };
 
     if (q) {
       whereClause = {
-        status: 'ACTIVE',
+        status: { not: 'BANNED' },
         OR: [
           { fullName: { contains: q, mode: 'insensitive' } },
           { username: { contains: q, mode: 'insensitive' } },
@@ -907,7 +906,7 @@ exports.searchSellersForFeatured = async (req, res) => {
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      take: 20,
+      take: 50,
       orderBy: [
         { totalSold: 'desc' },
         { rating: 'desc' },

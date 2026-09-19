@@ -4,6 +4,7 @@ const productController = require('../controllers/productController');
 const { authenticate, optionalAuth } = require('../middlewares/auth');
 
 router.get('/', optionalAuth, productController.getProducts);
+router.get('/recommended', optionalAuth, productController.getRecommendedProducts);
 router.get('/my-products', authenticate, productController.getMyProducts);
 router.get('/my-favorites', authenticate, productController.getMyFavorites);
 router.get('/:id', optionalAuth, productController.getProductById);
