@@ -104,10 +104,10 @@ export default function AuthPage({ initialMode = 'login' }) {
         {mode === 'login' ? (
           <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
             <div className="space-y-1">
-              <label className="font-bold text-slate-700">Email hoặc Username *</label>
+              <label className="font-bold text-slate-700">Tài khoản hoặc Email *</label>
               <input
                 type="text"
-                placeholder="VD: NguyenNamHai hoặc nguyennamhaibusiness@gmail.com"
+                placeholder="Điền tài khoản..."
                 value={account}
                 onChange={(e) => setAccount(e.target.value)}
                 required
@@ -119,7 +119,7 @@ export default function AuthPage({ initialMode = 'login' }) {
               <label className="font-bold text-slate-700">Mật khẩu *</label>
               <input
                 type="password"
-                placeholder="Nhập mật khẩu..."
+                placeholder="Điền mật khẩu..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

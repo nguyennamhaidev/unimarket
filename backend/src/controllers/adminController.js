@@ -501,10 +501,10 @@ exports.createCategory = async (req, res) => {
 exports.toggleUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body; // "ADMIN", "CTV", or "USER"
+    const { role } = req.body; // "ADMIN", "QTV", "CTV", or "USER"
 
-    if (!role || !['ADMIN', 'CTV', 'USER'].includes(role)) {
-      return res.status(400).json({ message: 'Vai trò không hợp lệ (chấp nhận ADMIN, CTV hoặc USER).' });
+    if (!role || !['ADMIN', 'QTV', 'CTV', 'USER'].includes(role)) {
+      return res.status(400).json({ message: 'Vai trò không hợp lệ (chấp nhận ADMIN, QTV, CTV hoặc USER).' });
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
@@ -517,14 +517,20 @@ exports.toggleUserRole = async (req, res) => {
       data: { role }
     });
 
-    const roleName = role === 'ADMIN' ? 'Quản trị viên (Admin)' : role === 'CTV' ? 'Cộng tác viên (CTV)' : 'Người dùng (User)';
+    const roleName = role === 'ADMIN' 
+      ? 'Quản trị viên cấp cao (Admin)' 
+      : role === 'QTV' 
+      ? 'Quản trị viên (QTV)' 
+      : role === 'CTV' 
+      ? 'Cộng tác viên (CTV)' 
+      : 'Người dùng (User)';
 
     await logAdminAction(
       req.user.id,
       'UPDATE_USER_ROLE',
       'USER',
       id,
-      `Admin ${req.user.fullName} đã thay đổi vai trò của @${targetUser.username} thành [${role}].`
+      `Admin ${req.user.fullName} đã thay đổi vai trò của @${targetUser.username} thành [${role} - ${roleName}].`
     );
 
     res.json({

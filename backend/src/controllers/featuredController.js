@@ -897,7 +897,8 @@ exports.searchSellersForFeatured = async (req, res) => {
           { fullName: { contains: q, mode: 'insensitive' } },
           { username: { contains: q, mode: 'insensitive' } },
           { email: { contains: q, mode: 'insensitive' } },
-          { phone: { contains: q, mode: 'insensitive' } },
+          { zalo: { contains: q, mode: 'insensitive' } },
+          { telegram: { contains: q, mode: 'insensitive' } },
           { university: { name: { contains: q, mode: 'insensitive' } } },
           { university: { shortName: { contains: q, mode: 'insensitive' } } }
         ]
@@ -917,7 +918,9 @@ exports.searchSellersForFeatured = async (req, res) => {
         fullName: true,
         username: true,
         email: true,
-        phone: true,
+        zalo: true,
+        facebook: true,
+        telegram: true,
         avatar: true,
         rating: true,
         totalSold: true,

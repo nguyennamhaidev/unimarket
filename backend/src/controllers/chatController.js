@@ -427,6 +427,7 @@ exports.deleteConversation = async (req, res) => {
 };
 
 // Lấy danh sách nhân sự hỗ trợ (Admin & CTV)
+// Lấy danh sách nhân sự hỗ trợ (Quản trị viên Admin & QTV)
 exports.getSupportStaff = async (req, res) => {
   try {
     let staff = await prisma.user.findMany({
@@ -444,11 +445,13 @@ exports.getSupportStaff = async (req, res) => {
         totalSold: true,
         zalo: true,
         facebook: true,
+        telegram: true,
         university: { select: { shortName: true, name: true } }
-      }
+      },
+      orderBy: { createdAt: 'asc' }
     });
 
-    // Nếu trong DB chưa có user nào role ADMIN/CTV thì lấy user đầu tiên
+    // Nếu trong DB chưa có user nào role ADMIN/QTV thì lấy user đầu tiên
     if (staff.length === 0) {
       const firstUser = await prisma.user.findFirst({
         where: { status: 'ACTIVE' },
@@ -462,6 +465,7 @@ exports.getSupportStaff = async (req, res) => {
           totalSold: true,
           zalo: true,
           facebook: true,
+          telegram: true,
           university: { select: { shortName: true, name: true } }
         }
       });
@@ -471,12 +475,14 @@ exports.getSupportStaff = async (req, res) => {
     }
 
     const admins = staff.filter(s => s.role === 'ADMIN');
-    const ctvs = staff.filter(s => s.role !== 'ADMIN');
+    const qtvs = staff.filter(s => ['QTV', 'CTV'].includes(s.role));
 
     res.json({
       success: true,
       admins: admins.length > 0 ? admins : staff,
-      ctvs: ctvs.length > 0 ? ctvs : staff
+      qtvs: qtvs.length > 0 ? qtvs : (admins.length > 0 ? admins : staff),
+      ctvs: qtvs.length > 0 ? qtvs : (admins.length > 0 ? admins : staff),
+      allStaff: staff
     });
   } catch (err) {
     console.error('getSupportStaff error:', err);

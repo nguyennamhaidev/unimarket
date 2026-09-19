@@ -31,7 +31,10 @@ export default function UserProfilePage() {
   const isMyProfile = currentUser?.id === id;
 
   const [profileData, setProfileData] = useState(null);
-  const [activeTab, setActiveTab] = useState('active'); // active, sold, reviews, stats, settings
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'active';
+  });
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
 
@@ -43,6 +46,7 @@ export default function UserProfilePage() {
   const [district, setDistrict] = useState('');
   const [zalo, setZalo] = useState('');
   const [facebook, setFacebook] = useState('');
+  const [telegram, setTelegram] = useState('');
   const [instagram, setInstagram] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -53,6 +57,12 @@ export default function UserProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam) setActiveTab(tabParam);
+  }, [window.location.search]);
 
   useEffect(() => {
     fetchProfile();
@@ -73,6 +83,7 @@ export default function UserProfilePage() {
         setDistrict(res.data.user.district || '');
         setZalo(res.data.user.zalo || '');
         setFacebook(res.data.user.facebook || '');
+        setTelegram(res.data.user.telegram || '');
         setInstagram(res.data.user.instagram || '');
       }
     } catch (err) {
@@ -107,6 +118,7 @@ export default function UserProfilePage() {
         district,
         zalo,
         facebook,
+        telegram,
         instagram
       });
       setSaveSuccess(true);
@@ -286,7 +298,7 @@ export default function UserProfilePage() {
         )}
 
         {/* Social Contact Links */}
-        {(user.zalo || user.facebook || user.instagram) && (
+        {(user.zalo || user.facebook || user.telegram || user.instagram) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-bold text-slate-400 text-[11px]">Kênh liên hệ:</span>
             {user.zalo && (
@@ -302,7 +314,7 @@ export default function UserProfilePage() {
             )}
             {user.facebook && (
               <a
-                href={user.facebook}
+                href={user.facebook.startsWith('http') ? user.facebook : `https://facebook.com/${user.facebook}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] font-bold rounded-xl border border-[#1877F2]/20 inline-flex items-center gap-1.5 transition-colors"
@@ -311,9 +323,20 @@ export default function UserProfilePage() {
                 <span>Facebook</span>
               </a>
             )}
+            {user.telegram && (
+              <a
+                href={user.telegram.startsWith('http') ? user.telegram : `https://t.me/${user.telegram.replace('@', '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold rounded-xl border border-sky-200 inline-flex items-center gap-1.5 transition-colors"
+              >
+                <span className="text-xs">✈️</span>
+                <span>Telegram: {user.telegram.startsWith('@') ? user.telegram : `@${user.telegram}`}</span>
+              </a>
+            )}
             {user.instagram && (
               <a
-                href={user.instagram}
+                href={user.instagram.startsWith('http') ? user.instagram : `https://instagram.com/${user.instagram.replace('@', '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl border border-rose-200 inline-flex items-center gap-1.5 transition-colors"
@@ -562,7 +585,7 @@ export default function UserProfilePage() {
 
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Liên kết liên hệ (Zalo, Facebook, Instagram)
+                  Liên kết liên hệ (Zalo, Facebook, Telegram, Instagram)
                 </span>
                 
                 <div className="space-y-1">
@@ -583,6 +606,17 @@ export default function UserProfilePage() {
                     placeholder="https://facebook.com/..."
                     value={facebook}
                     onChange={(e) => setFacebook(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Username hoặc Link Telegram</label>
+                  <input
+                    type="text"
+                    placeholder="VD: @unimarket_student hoặc https://t.me/..."
+                    value={telegram}
+                    onChange={(e) => setTelegram(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
                   />
                 </div>

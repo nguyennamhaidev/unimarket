@@ -22,7 +22,7 @@ export default function FloatingSupportWidget() {
   const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'report'
-  const [supportStaff, setSupportStaff] = useState({ admins: [], ctvs: [] });
+  const [supportStaff, setSupportStaff] = useState({ admins: [], qtvs: [] });
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [connectingId, setConnectingId] = useState(null);
   const [systemSettings, setSystemSettings] = useState({
@@ -31,16 +31,16 @@ export default function FloatingSupportWidget() {
   });
 
   useEffect(() => {
-    // Fetch public settings (Zalo & Telegram)
+    // Fetch public settings (Zalo & Telegram) and support staff
     api.get('/settings').then(res => {
-      if (res.data?.settings) {
-        setSystemSettings(res.data.settings);
-      }
+      if (res.data?.settings) setSystemSettings(res.data.settings);
     }).catch(console.error);
+
+    fetchSupportStaff();
   }, []);
 
   useEffect(() => {
-    if (isOpen && supportStaff.admins.length === 0 && supportStaff.ctvs.length === 0) {
+    if (isOpen) {
       fetchSupportStaff();
     }
   }, [isOpen]);
@@ -51,7 +51,7 @@ export default function FloatingSupportWidget() {
       const res = await api.get('/chat/support-staff');
       setSupportStaff({
         admins: res.data.admins || [],
-        ctvs: res.data.ctvs || []
+        qtvs: res.data.qtvs || res.data.ctvs || []
       });
     } catch (err) {
       console.error('Fetch support staff error:', err);
@@ -69,8 +69,9 @@ export default function FloatingSupportWidget() {
 
     setConnectingId(staff.id);
     try {
+      const roleTitle = staff.role === 'ADMIN' ? 'Admin' : 'Quản Trị Viên (QTV)';
       const topic = `Hỗ trợ trực tuyến Chợ Sinh Viên UniMarket`;
-      const initialMessage = `👋 Chào ${staff.role === 'ADMIN' ? 'Admin' : 'bạn CTV'}, mình cần hỗ trợ trực tiếp từ UniMarket. Hỗ trợ giúp mình nhé!`;
+      const initialMessage = `👋 Chào ${roleTitle}, mình cần hỗ trợ trực tiếp từ UniMarket. Hỗ trợ giúp mình nhé!`;
 
       const res = await api.post('/chat/start-support', {
         staffId: staff.id,
@@ -210,7 +211,7 @@ export default function FloatingSupportWidget() {
               <div className="space-y-2">
                 <div className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Quản Trị Viên &amp; CTV Trực Tuyến</span>
+                  <span>Ban Quản Trị &amp; QTV Hỗ Trợ 24/7</span>
                 </div>
 
                 {loadingStaff ? (
@@ -219,12 +220,12 @@ export default function FloatingSupportWidget() {
                       <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse"></div>
                     ))}
                   </div>
-                ) : [...supportStaff.admins, ...supportStaff.ctvs].length === 0 ? (
+                ) : [...supportStaff.admins, ...(supportStaff.qtvs || [])].length === 0 ? (
                   <div className="text-center py-6 text-slate-400">
                     Đang kết nối hệ thống hỗ trợ...
                   </div>
                 ) : (
-                  [...supportStaff.admins, ...supportStaff.ctvs].map((staff) => {
+                  Array.from(new Map([...supportStaff.admins, ...(supportStaff.qtvs || [])].map(s => [s.id, s])).values()).map((staff) => {
                     const avatarUrl = staff.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${staff.username}`;
                     const isConnecting = connectingId === staff.id;
 
@@ -242,14 +243,18 @@ export default function FloatingSupportWidget() {
                           <div className="min-w-0">
                             <div className="font-bold text-slate-900 truncate flex items-center gap-1">
                               <span>{staff.fullName}</span>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                                staff.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                                staff.role === 'ADMIN' 
+                                  ? 'bg-rose-100 text-rose-800' 
+                                  : staff.role === 'QTV' 
+                                  ? 'bg-purple-100 text-purple-800' 
+                                  : 'bg-emerald-100 text-emerald-800'
                               }`}>
-                                {staff.role === 'ADMIN' ? 'Admin' : 'CTV'}
+                                {staff.role === 'ADMIN' ? 'Admin' : staff.role === 'QTV' ? 'QTV' : 'CTV'}
                               </span>
                             </div>
                             <div className="text-[10px] text-slate-400 truncate">
-                              @{staff.username} • {staff.university?.shortName || 'UniMarket'}
+                              @{staff.username} • {staff.university?.shortName || 'UniMarket Support'}
                             </div>
                           </div>
                         </div>

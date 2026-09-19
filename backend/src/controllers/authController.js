@@ -170,7 +170,7 @@ exports.getMe = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { fullName, bio, faculty, studentCohort, district, universityId, avatar, zalo, facebook, instagram } = req.body;
+    const { fullName, bio, faculty, studentCohort, district, universityId, avatar, zalo, facebook, telegram, instagram } = req.body;
 
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
@@ -184,6 +184,7 @@ exports.updateProfile = async (req, res) => {
         avatar: avatar !== undefined ? avatar : req.user.avatar,
         zalo: zalo !== undefined ? zalo : req.user.zalo,
         facebook: facebook !== undefined ? facebook : req.user.facebook,
+        telegram: telegram !== undefined ? telegram : req.user.telegram,
         instagram: instagram !== undefined ? instagram : req.user.instagram
       },
       include: { university: true }

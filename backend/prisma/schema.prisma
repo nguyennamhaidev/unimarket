@@ -17,6 +17,7 @@ model User {
   bio           String?
   zalo          String?
   facebook      String?
+  telegram      String?
   instagram     String?
   universityId  String?
   university    University? @relation(fields: [universityId], references: [id])

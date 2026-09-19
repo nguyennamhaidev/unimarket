@@ -1190,15 +1190,18 @@ export default function AdminDashboardPage() {
                           onChange={(e) => handleSetRole(u.id, u.username, e.target.value)}
                           className={`font-bold text-[11px] px-2 py-1 rounded-lg border cursor-pointer ${
                             u.role === 'ADMIN'
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : u.role === 'QTV'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
                               : u.role === 'CTV'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-slate-50 text-slate-700 border-slate-200'
                           }`}
                         >
-                          <option value="USER">USER (Thường)</option>
-                          <option value="CTV">CTV (Cộng tác viên)</option>
-                          <option value="ADMIN">ADMIN (Quản trị)</option>
+                          <option value="USER">👤 USER (Người dùng)</option>
+                          <option value="QTV">🛡️ QTV (Quản trị viên)</option>
+                          <option value="CTV">🤝 CTV (Cộng tác viên)</option>
+                          <option value="ADMIN">👑 ADMIN (Quản trị cấp cao)</option>
                         </select>
                       )}
                     </td>

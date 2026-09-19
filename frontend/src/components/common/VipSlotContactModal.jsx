@@ -18,9 +18,9 @@ import { useAuth } from '../../context/AuthContext';
 export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotType = 'product' }) {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const [supportStaff, setSupportStaff] = useState({ admins: [], ctvs: [] });
+  const [supportStaff, setSupportStaff] = useState({ admins: [], qtvs: [] });
   const [loading, setLoading] = useState(true);
-  const [selectedStaffType, setSelectedStaffType] = useState('admin'); // 'admin' | 'ctv'
+  const [selectedStaffType, setSelectedStaffType] = useState('admin'); // 'admin' | 'qtv'
   const [connectingId, setConnectingId] = useState(null);
   const [systemSettings, setSystemSettings] = useState({
     zaloContact: 'https://zalo.me/0987654321',
@@ -42,7 +42,7 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
       const res = await api.get('/chat/support-staff');
       setSupportStaff({
         admins: res.data.admins || [],
-        ctvs: res.data.ctvs || []
+        qtvs: res.data.qtvs || res.data.ctvs || []
       });
     } catch (err) {
       console.error('Fetch support staff error:', err);
@@ -62,11 +62,12 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
     setConnectingId(staff.id);
     try {
       const isShop = slotType === 'shop';
+      const roleTitle = staff.role === 'ADMIN' ? 'Admin' : 'Quản Trị Viên (QTV)';
       const topic = isShop 
         ? `Đăng ký Gian Hàng Top Shop #${String(slotNumber).padStart(2, '0')}`
         : `Đăng ký Sản Phẩm Nổi Bật Slot #${String(slotNumber).padStart(2, '0')}`;
       
-      const initialMessage = `👋 Chào ${staff.role === 'ADMIN' ? 'Admin' : 'bạn CTV'}, mình muốn đăng ký đưa ${isShop ? 'gian hàng' : 'sản phẩm'} lên Vị Trí VIP #${String(slotNumber).padStart(2, '0')} trên Chợ Sinh Viên UniMarket. Tư vấn & duyệt slot giúp mình nhé!`;
+      const initialMessage = `👋 Chào ${roleTitle}, mình muốn đăng ký đưa ${isShop ? 'gian hàng' : 'sản phẩm'} lên Vị Trí VIP #${String(slotNumber).padStart(2, '0')} trên Chợ Sinh Viên UniMarket. Tư vấn & duyệt slot giúp mình nhé!`;
 
       const res = await api.post('/chat/start-support', {
         staffId: staff.id,
@@ -85,7 +86,7 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
   };
 
   const isShop = slotType === 'shop';
-  const staffList = selectedStaffType === 'admin' ? supportStaff.admins : supportStaff.ctvs;
+  const staffList = selectedStaffType === 'admin' ? supportStaff.admins : supportStaff.qtvs;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
@@ -132,15 +133,15 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
 
           <button
             type="button"
-            onClick={() => setSelectedStaffType('ctv')}
+            onClick={() => setSelectedStaffType('qtv')}
             className={`flex-1 py-2 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
-              selectedStaffType === 'ctv'
-                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+              selectedStaffType === 'qtv'
+                ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>2. Nhắn Cộng Tác Viên (CTV)</span>
+            <span>2. Nhắn Ban Quản Trị (QTV)</span>
           </button>
         </div>
 

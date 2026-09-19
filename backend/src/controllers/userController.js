@@ -14,6 +14,7 @@ exports.getUserPublicProfile = async (req, res) => {
         bio: true,
         zalo: true,
         facebook: true,
+        telegram: true,
         instagram: true,
         faculty: true,
         studentCohort: true,
