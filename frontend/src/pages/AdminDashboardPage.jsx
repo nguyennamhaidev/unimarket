@@ -67,12 +67,16 @@ export default function AdminDashboardPage() {
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productSearchResults, setProductSearchResults] = useState([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
+  const [selectedProductDuration, setSelectedProductDuration] = useState(30);
+  const [customProductDuration, setCustomProductDuration] = useState('');
 
   const [showShopModal, setShowShopModal] = useState(false);
   const [targetSlotForShop, setTargetSlotForShop] = useState(1);
   const [shopSearchQuery, setShopSearchQuery] = useState('');
   const [shopSearchResults, setShopSearchResults] = useState([]);
   const [searchingShops, setSearchingShops] = useState(false);
+  const [selectedShopDuration, setSelectedShopDuration] = useState(30);
+  const [customShopDuration, setCustomShopDuration] = useState('');
 
   // Modals / forms for category & uni
   const [newUniName, setNewUniName] = useState('');
@@ -225,19 +229,43 @@ export default function AdminDashboardPage() {
       confirmReplace = true;
     }
 
+    const durationDays = customProductDuration ? parseInt(customProductDuration) : selectedProductDuration;
+
     try {
       const res = await api.post('/featured/admin/product', {
         productId: product.id,
         slotNumber: slotNum,
-        confirmReplace
+        confirmReplace,
+        durationDays
       });
       alert(res.data.message);
       setShowProductModal(false);
       setProductSearchQuery('');
       setProductSearchResults([]);
+      setCustomProductDuration('');
       loadFeaturedProducts();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi đưa sản phẩm vào slot.');
+    }
+  };
+
+  const handleExtendProduct = async (slotNum) => {
+    const slot = featuredProductSlots.find(s => s.slotNumber === slotNum);
+    const title = slot?.data?.product?.title || `Slot ${slotNum}`;
+    const daysStr = prompt(`GIA HẠN GÓI MARKETING CHO SẢN PHẨM:\n"${title}"\n\nNhập số ngày muốn cộng thêm (ví dụ: 7, 14, 30, 60):`, '30');
+    if (!daysStr) return;
+    const extraDays = parseInt(daysStr);
+    if (isNaN(extraDays) || extraDays <= 0) {
+      alert('Số ngày gia hạn không hợp lệ.');
+      return;
+    }
+
+    try {
+      const res = await api.post(`/featured/admin/product/${slotNum}/extend`, { extraDays });
+      alert(res.data.message);
+      loadFeaturedProducts();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi gia hạn sản phẩm.');
     }
   };
 
@@ -280,19 +308,43 @@ export default function AdminDashboardPage() {
       confirmReplace = true;
     }
 
+    const durationDays = customShopDuration ? parseInt(customShopDuration) : selectedShopDuration;
+
     try {
       const res = await api.post('/featured/admin/shop', {
         userId: targetUser.id,
         slotNumber: slotNum,
-        confirmReplace
+        confirmReplace,
+        durationDays
       });
       alert(res.data.message);
       setShowShopModal(false);
       setShopSearchQuery('');
       setShopSearchResults([]);
+      setCustomShopDuration('');
       loadFeaturedShops();
     } catch (err) {
       alert(err.response?.data?.message || 'Lỗi khi đưa gian hàng vào slot.');
+    }
+  };
+
+  const handleExtendShop = async (slotNum) => {
+    const slot = featuredShopSlots.find(s => s.slotNumber === slotNum);
+    const shopName = slot?.data?.user?.fullName || `Shop Slot ${slotNum}`;
+    const daysStr = prompt(`GIA HẠN GÓI MARKETING CHO GIAN HÀNG:\n"${shopName}"\n\nNhập số ngày muốn cộng thêm (ví dụ: 7, 14, 30, 60):`, '30');
+    if (!daysStr) return;
+    const extraDays = parseInt(daysStr);
+    if (isNaN(extraDays) || extraDays <= 0) {
+      alert('Số ngày gia hạn không hợp lệ.');
+      return;
+    }
+
+    try {
+      const res = await api.post(`/featured/admin/shop/${slotNum}/extend`, { extraDays });
+      alert(res.data.message);
+      loadFeaturedShops();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Lỗi khi gia hạn gian hàng.');
     }
   };
 
@@ -528,15 +580,15 @@ export default function AdminDashboardPage() {
                 <span className="p-1.5 bg-orange-500 text-white rounded-xl">
                   <Flame className="w-4 h-4" />
                 </span>
-                <h3 className="font-black text-slate-900 text-base">20 Slot Sản Phẩm Nổi Bật Trang Chủ</h3>
+                <h3 className="font-black text-slate-900 text-base">20 Slot Sản Phẩm Nổi Bật Trang Chủ (Gói Marketing)</h3>
               </div>
               <p className="text-xs text-slate-600 mt-1 max-w-2xl">
-                Các sản phẩm trong danh sách này sẽ hiển thị trực tiếp tại Carousel Nổi bật trên Trang Chủ. Khi sản phẩm được đánh dấu <strong>Đã Bán</strong> hoặc bị xóa/ẩn, hệ thống sẽ tự động gỡ khỏi slot.
+                Cài đặt số ngày hiển thị cho từng slot. Hệ thống sẽ tự động đếm ngược thời gian, gửi thông báo nhắc hạn (7 ngày, 3 ngày, 1 ngày trước) cho người bán và tự động gỡ khi hết hạn.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
-                Đang dùng: {featuredProductSlots.filter(s => s.isOccupied).length} / 20 slot
+                Đang dùng: {featuredProductSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20 slot
               </span>
             </div>
           </div>
@@ -549,13 +601,16 @@ export default function AdminDashboardPage() {
                 const isOcc = slot.isOccupied && slot.data?.product;
                 const prod = slot.data?.product;
                 const slotLabel = slot.slotNumber < 10 ? `0${slot.slotNumber}` : slot.slotNumber;
+                const countdown = slot.data?.countdown;
 
                 return (
                   <div
                     key={slot.slotNumber}
                     className={`relative rounded-3xl border transition-all flex flex-col justify-between p-4 ${
                       isOcc 
-                        ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
+                        ? countdown?.isExpired
+                          ? 'bg-slate-50 border-slate-200 opacity-80'
+                          : 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
                         : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/30'
                     }`}
                   >
@@ -565,9 +620,27 @@ export default function AdminDashboardPage() {
                         SLOT #{slotLabel}
                       </span>
                       {isOcc ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Đang hiển thị
-                        </span>
+                        countdown?.isExpired ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 border border-slate-300">
+                            Đã hết hạn
+                          </span>
+                        ) : countdown?.urgency === 'URGENT_1D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
+                            Hết hạn trong 24h
+                          </span>
+                        ) : countdown?.urgency === 'WARNING_3D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
+                            Còn {countdown.remainingDays} ngày
+                          </span>
+                        ) : countdown?.urgency === 'WARNING_7D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                            Còn {countdown.remainingDays} ngày
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Còn {countdown?.remainingDays || 30} ngày
+                          </span>
+                        )
                       ) : (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-600">
                           Slot trống
@@ -581,7 +654,7 @@ export default function AdminDashboardPage() {
                           <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-100 mb-2.5 border border-slate-100">
                             {prod.images && prod.images.length > 0 ? (
                               <img
-                                src={prod.images[0]}
+                                src={prod.images[0]?.url || prod.images[0]}
                                 alt={prod.title}
                                 className="w-full h-full object-cover"
                               />
@@ -590,6 +663,10 @@ export default function AdminDashboardPage() {
                                 <Package className="w-8 h-8" />
                               </div>
                             )}
+                            <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                              <Star className="w-3 h-3 fill-white" />
+                              <span>VIP SLOT</span>
+                            </div>
                             <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-md px-2 py-0.5 rounded-lg text-[10px] font-bold text-white">
                               {prod.category?.name || 'Danh mục'}
                             </div>
@@ -599,29 +676,59 @@ export default function AdminDashboardPage() {
                             {prod.title}
                           </h4>
 
-                          <div className="mt-1 font-black text-rose-600 text-xs">
-                            {prod.isFree ? 'Miễn phí (0đ)' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}
+                          <div className="mt-1 font-black text-rose-600 text-xs flex items-center justify-between">
+                            <span>{prod.isFree ? 'Miễn phí (0đ)' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}</span>
+                            <span className="text-[10px] font-normal text-slate-400">Đã bán {prod.totalSold || 0}</span>
+                          </div>
+
+                          {/* Countdown Timer Box */}
+                          <div className="mt-2.5 p-2 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-500 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Thời hạn:</span>
+                              </span>
+                              <span className={`font-bold ${
+                                countdown?.isExpired
+                                  ? 'text-rose-600'
+                                  : countdown?.urgency === 'URGENT_1D'
+                                  ? 'text-rose-600 animate-pulse'
+                                  : countdown?.urgency === 'WARNING_3D'
+                                  ? 'text-orange-600'
+                                  : 'text-emerald-700'
+                              }`}>
+                                {countdown?.remainingText || '30 ngày'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                              <span>Hạn: {slot.data.endDate ? new Date(slot.data.endDate).toLocaleDateString('vi-VN') : 'Vô thời hạn'}</span>
+                              <span>(Gói {slot.data.durationDays || 30} ngày)</span>
+                            </div>
                           </div>
 
                           <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                             <span className="truncate">Người bán: <strong>@{prod.seller?.username}</strong></span>
                             <span className="font-semibold text-emerald-700 shrink-0">{prod.seller?.university?.shortName || ''}</span>
                           </div>
-
-                          <div className="text-[10px] text-slate-400 mt-1">
-                            Người gán: {slot.data.addedBy?.fullName || 'BQT'} ({slot.data.addedBy?.role})
-                          </div>
                         </div>
 
-                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleExtendProduct(slot.slotNumber)}
+                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1"
+                            title="Gia hạn thêm số ngày hiển thị"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5" />
+                            <span>Gia hạn</span>
+                          </button>
                           <button
                             onClick={() => {
                               setTargetSlotForProduct(slot.slotNumber);
                               setShowProductModal(true);
                             }}
-                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all"
+                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all text-center"
                           >
-                            Thay thế
+                            Đổi SP
                           </button>
                           <button
                             onClick={() => handleRemoveProduct(slot.slotNumber)}
@@ -653,9 +760,10 @@ export default function AdminDashboardPage() {
                             setTargetSlotForProduct(slot.slotNumber);
                             setShowProductModal(true);
                           }}
-                          className="mt-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                          className="mt-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                         >
-                          + Chọn sản phẩm
+                          <Flame className="w-3.5 h-3.5 fill-white" />
+                          <span>+ Thêm Sản Phẩm</span>
                         </button>
                       </div>
                     )}
@@ -676,15 +784,15 @@ export default function AdminDashboardPage() {
                 <span className="p-1.5 bg-teal-600 text-white rounded-xl">
                   <Star className="w-4 h-4" />
                 </span>
-                <h3 className="font-black text-slate-900 text-base">20 Slot Gian Hàng Sinh Viên Nổi Bật</h3>
+                <h3 className="font-black text-slate-900 text-base">20 Slot Gian Hàng Sinh Viên Nổi Bật (Gói Marketing)</h3>
               </div>
               <p className="text-xs text-slate-600 mt-1 max-w-2xl">
-                Tuyển chọn các sinh viên bán đồ uy tín nhất, phản hồi tích cực để giới thiệu tới toàn bộ cộng đồng trên Trang Chủ.
+                Cài đặt số ngày hiển thị cho từng gian hàng sinh viên uy tín. Hệ thống tự động đếm ngược và thông báo nhắc gia hạn trước 7 ngày, 3 ngày, 1 ngày.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
-                Đang dùng: {featuredShopSlots.filter(s => s.isOccupied).length} / 20 slot
+                Đang dùng: {featuredShopSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20 slot
               </span>
             </div>
           </div>
@@ -697,13 +805,16 @@ export default function AdminDashboardPage() {
                 const isOcc = slot.isOccupied && slot.data?.user;
                 const shopUser = slot.data?.user;
                 const slotLabel = slot.slotNumber < 10 ? `0${slot.slotNumber}` : slot.slotNumber;
+                const countdown = slot.data?.countdown;
 
                 return (
                   <div
                     key={slot.slotNumber}
                     className={`relative rounded-3xl border transition-all flex flex-col justify-between p-4 ${
                       isOcc 
-                        ? 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
+                        ? countdown?.isExpired
+                          ? 'bg-slate-50 border-slate-200 opacity-80'
+                          : 'bg-white border-slate-200 shadow-sm hover:shadow-md' 
                         : 'bg-slate-50/70 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/30'
                     }`}
                   >
@@ -713,9 +824,27 @@ export default function AdminDashboardPage() {
                         SHOP #{slotLabel}
                       </span>
                       {isOcc ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
-                          Đang hiển thị
-                        </span>
+                        countdown?.isExpired ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 border border-slate-300">
+                            Đã hết hạn
+                          </span>
+                        ) : countdown?.urgency === 'URGENT_1D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 animate-pulse">
+                            Hết hạn trong 24h
+                          </span>
+                        ) : countdown?.urgency === 'WARNING_3D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200">
+                            Còn {countdown.remainingDays} ngày
+                          </span>
+                        ) : countdown?.urgency === 'WARNING_7D' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                            Còn {countdown.remainingDays} ngày
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200">
+                            Còn {countdown?.remainingDays || 30} ngày
+                          </span>
+                        )
                       ) : (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200/70 text-slate-600">
                           Slot trống
@@ -748,28 +877,57 @@ export default function AdminDashboardPage() {
                           <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-2xl text-[11px]">
                             <div className="flex items-center gap-1 text-amber-600 font-bold">
                               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                              <span>{shopUser.ratingAvg?.toFixed(1) || '5.0'}</span>
-                              <span className="text-slate-400 font-normal text-[10px]">({shopUser.ratingCount || 0})</span>
+                              <span>{shopUser.rating?.toFixed(1) || '5.0'}</span>
+                              <span className="text-slate-400 font-normal text-[10px]">({shopUser.totalSold || 0} đã bán)</span>
                             </div>
                             <div className="text-right text-slate-700 font-bold">
                               {shopUser._count?.products || 0} <span className="font-normal text-slate-400 text-[10px]">đồ bán</span>
                             </div>
                           </div>
 
-                          <div className="text-[10px] text-slate-400 mt-2">
-                            Người gán: {slot.data.addedBy?.fullName || 'BQT'} ({slot.data.addedBy?.role})
+                          {/* Countdown Box */}
+                          <div className="mt-2.5 p-2 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-500 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Thời hạn:</span>
+                              </span>
+                              <span className={`font-bold ${
+                                countdown?.isExpired
+                                  ? 'text-rose-600'
+                                  : countdown?.urgency === 'URGENT_1D'
+                                  ? 'text-rose-600 animate-pulse'
+                                  : countdown?.urgency === 'WARNING_3D'
+                                  ? 'text-orange-600'
+                                  : 'text-teal-700'
+                              }`}>
+                                {countdown?.remainingText || '30 ngày'}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                              <span>Hạn: {slot.data.endDate ? new Date(slot.data.endDate).toLocaleDateString('vi-VN') : 'Vô thời hạn'}</span>
+                              <span>(Gói {slot.data.durationDays || 30} ngày)</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-2">
+                        <div className="pt-3 mt-2 border-t border-slate-100 flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleExtendShop(slot.slotNumber)}
+                            className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1"
+                            title="Gia hạn thêm số ngày hiển thị"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5" />
+                            <span>Gia hạn</span>
+                          </button>
                           <button
                             onClick={() => {
                               setTargetSlotForShop(slot.slotNumber);
                               setShowShopModal(true);
                             }}
-                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all"
+                            className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all text-center"
                           >
-                            Thay thế
+                            Đổi Shop
                           </button>
                           <button
                             onClick={() => handleRemoveShop(slot.slotNumber)}
@@ -801,9 +959,10 @@ export default function AdminDashboardPage() {
                             setTargetSlotForShop(slot.slotNumber);
                             setShowShopModal(true);
                           }}
-                          className="mt-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                          className="mt-2 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                         >
-                          + Chọn gian hàng
+                          <Store className="w-3.5 h-3.5" />
+                          <span>+ Thêm Gian Hàng</span>
                         </button>
                       </div>
                     )}
@@ -1372,7 +1531,7 @@ export default function AdminDashboardPage() {
                 <span className="font-mono text-xs font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs inline-block mb-1">
                   SLOT #{targetSlotForProduct < 10 ? `0${targetSlotForProduct}` : targetSlotForProduct}
                 </span>
-                <h3 className="font-black text-slate-900 text-lg">Chọn Sản Phẩm Đưa Vào Slot</h3>
+                <h3 className="font-black text-slate-900 text-lg">Chọn Sản Phẩm Đưa Vào Slot (Gói Marketing)</h3>
               </div>
               <button
                 onClick={() => {
@@ -1397,6 +1556,51 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               )}
+
+              {/* Duration Selector */}
+              <div className="bg-orange-50/50 border border-orange-200 p-3.5 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-orange-500" />
+                    <span>Cài đặt thời hạn hiển thị:</span>
+                  </label>
+                  <span className="text-[11px] font-black text-orange-600">
+                    {customProductDuration ? `${customProductDuration} ngày` : `${selectedProductDuration} ngày`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[3, 7, 14, 30, 60, 90].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProductDuration(days);
+                        setCustomProductDuration('');
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                        !customProductDuration && selectedProductDuration === days
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {days === 30 ? '30 ngày (1T)' : days === 60 ? '60 ngày (2T)' : days === 90 ? '90 ngày (3T)' : `${days} ngày`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 pt-1 text-xs">
+                  <span className="text-[11px] text-slate-500">Hoặc tự nhập:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    placeholder="Số ngày..."
+                    value={customProductDuration}
+                    onChange={(e) => setCustomProductDuration(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs w-24 font-bold"
+                  />
+                  <span className="text-[11px] text-slate-400">ngày</span>
+                </div>
+              </div>
 
               {/* Search Box */}
               <div className="relative">
@@ -1429,7 +1633,7 @@ export default function AdminDashboardPage() {
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                           {prod.images && prod.images.length > 0 ? (
-                            <img src={prod.images[0]} alt={prod.title} className="w-full h-full object-cover" />
+                            <img src={prod.images[0]?.url || prod.images[0]} alt={prod.title} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-300">
                               <Package className="w-5 h-5" />
@@ -1493,7 +1697,7 @@ export default function AdminDashboardPage() {
                 <span className="font-mono text-xs font-black px-2.5 py-1 bg-teal-800 text-white rounded-xl shadow-xs inline-block mb-1">
                   SHOP #{targetSlotForShop < 10 ? `0${targetSlotForShop}` : targetSlotForShop}
                 </span>
-                <h3 className="font-black text-slate-900 text-lg">Chọn Gian Hàng Đưa Vào Slot</h3>
+                <h3 className="font-black text-slate-900 text-lg">Chọn Gian Hàng Đưa Vào Slot (Gói Marketing)</h3>
               </div>
               <button
                 onClick={() => {
@@ -1518,6 +1722,51 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               )}
+
+              {/* Duration Selector */}
+              <div className="bg-teal-50/50 border border-teal-200 p-3.5 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Cài đặt thời hạn hiển thị gian hàng:</span>
+                  </label>
+                  <span className="text-[11px] font-black text-teal-700">
+                    {customShopDuration ? `${customShopDuration} ngày` : `${selectedShopDuration} ngày`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[3, 7, 14, 30, 60, 90].map((days) => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => {
+                        setSelectedShopDuration(days);
+                        setCustomShopDuration('');
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                        !customShopDuration && selectedShopDuration === days
+                          ? 'bg-teal-600 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {days === 30 ? '30 ngày (1T)' : days === 60 ? '60 ngày (2T)' : days === 90 ? '90 ngày (3T)' : `${days} ngày`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 pt-1 text-xs">
+                  <span className="text-[11px] text-slate-500">Hoặc tự nhập:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    placeholder="Số ngày..."
+                    value={customShopDuration}
+                    onChange={(e) => setCustomShopDuration(e.target.value)}
+                    className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs w-24 font-bold"
+                  />
+                  <span className="text-[11px] text-slate-400">ngày</span>
+                </div>
+              </div>
 
               {/* Search Box */}
               <div className="relative">

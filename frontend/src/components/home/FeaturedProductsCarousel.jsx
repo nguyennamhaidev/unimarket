@@ -19,7 +19,7 @@ export default function FeaturedProductsCarousel() {
   const fetchFeaturedProducts = async () => {
     try {
       const res = await api.get('/featured/products');
-      setProducts(res.data.products || []);
+      setProducts(res.data.products || res.data.featuredProducts || []);
     } catch (err) {
       console.error('Fetch featured products error:', err);
     } finally {

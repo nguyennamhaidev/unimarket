@@ -17,7 +17,7 @@ export default function FeaturedShopsCarousel() {
   const fetchFeaturedShops = async () => {
     try {
       const res = await api.get('/featured/shops');
-      setShops(res.data.shops || []);
+      setShops(res.data.shops || res.data.featuredShops || []);
     } catch (err) {
       console.error('Fetch featured shops error:', err);
     } finally {
@@ -86,7 +86,7 @@ export default function FeaturedShopsCarousel() {
                 GIAN HÀNG NỔI BẬT
               </h2>
               <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                {shops.length} / 15 TOP SHOP
+                {shops.length} / 20 TOP SHOP
               </span>
             </div>
             <p className="text-[11px] text-slate-500">

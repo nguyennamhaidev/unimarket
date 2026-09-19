@@ -112,4 +112,11 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`UniMarket Backend Server running on http://localhost:${PORT}`);
+
+  // Background recurring check for featured marketing slot expirations and multi-tier alerts
+  const { checkFeaturedExpirations } = require('./services/featuredExpiryService');
+  checkFeaturedExpirations(io);
+  setInterval(() => {
+    checkFeaturedExpirations(io);
+  }, 10 * 60 * 1000); // Check every 10 minutes
 });

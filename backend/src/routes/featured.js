@@ -12,10 +12,12 @@ router.use('/admin', authenticate, requireAdminOrCTV);
 
 router.get('/admin/products', featuredController.getAdminFeaturedProducts);
 router.post('/admin/product', featuredController.assignFeaturedProduct);
+router.post('/admin/product/:slotNumber/extend', featuredController.extendFeaturedProduct);
 router.delete('/admin/product/:slotNumber', featuredController.removeFeaturedProduct);
 
 router.get('/admin/shops', featuredController.getAdminFeaturedShops);
 router.post('/admin/shop', featuredController.assignFeaturedShop);
+router.post('/admin/shop/:slotNumber/extend', featuredController.extendFeaturedShop);
 router.delete('/admin/shop/:slotNumber', featuredController.removeFeaturedShop);
 
 router.get('/admin/logs', featuredController.getFeaturedLogs);

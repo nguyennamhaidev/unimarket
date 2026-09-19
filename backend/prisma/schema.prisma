@@ -254,27 +254,41 @@ model AdminLog {
 }
 
 model FeaturedProduct {
-  id         String   @id @default(cuid())
-  productId  String   @unique
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  slotNumber Int      @unique // 1 to 20
-  status     String   @default("ACTIVE") // ACTIVE, INACTIVE
-  createdBy  String
-  creator    User     @relation("FeaturedProductCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  slotNumber      Int       @unique // 1 to 20
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, EXPIRED
+  durationDays    Int       @default(30) // Số ngày thuê marketing do Admin cài đặt
+  startDate       DateTime  @default(now())
+  endDate         DateTime? // Ngày hết hạn (tính từ startDate + durationDays)
+  notified7d      Boolean   @default(false) // Đã thông báo trước 7 ngày
+  notified3d      Boolean   @default(false) // Đã thông báo trước 3 ngày
+  notified1d      Boolean   @default(false) // Đã thông báo trước 1 ngày
+  notifiedExpired Boolean   @default(false) // Đã thông báo hết hạn
+  createdBy       String
+  creator         User      @relation("FeaturedProductCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model FeaturedShop {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  slotNumber Int      @unique // 1 to 20
-  status     String   @default("ACTIVE") // ACTIVE, INACTIVE
-  createdBy  String
-  creator    User     @relation("FeaturedShopCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slotNumber      Int       @unique // 1 to 20
+  status          String    @default("ACTIVE") // ACTIVE, INACTIVE, EXPIRED
+  durationDays    Int       @default(30) // Số ngày thuê marketing do Admin cài đặt
+  startDate       DateTime  @default(now())
+  endDate         DateTime? // Ngày hết hạn (tính từ startDate + durationDays)
+  notified7d      Boolean   @default(false) // Đã thông báo trước 7 ngày
+  notified3d      Boolean   @default(false) // Đã thông báo trước 3 ngày
+  notified1d      Boolean   @default(false) // Đã thông báo trước 1 ngày
+  notifiedExpired Boolean   @default(false) // Đã thông báo hết hạn
+  createdBy       String
+  creator         User      @relation("FeaturedShopCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model FeaturedLog {
