@@ -565,18 +565,20 @@ exports.updateSystemSettings = async (req, res) => {
     const { zaloContact, telegramContact } = req.body;
 
     if (zaloContact !== undefined) {
+      const cleanZalo = zaloContact ? String(zaloContact).trim() : '';
       await prisma.systemSetting.upsert({
         where: { key: 'zaloContact' },
-        update: { value: String(zaloContact).trim() },
-        create: { key: 'zaloContact', value: String(zaloContact).trim(), label: 'Zalo Hỗ Trợ' }
+        update: { value: cleanZalo },
+        create: { key: 'zaloContact', value: cleanZalo, label: 'Zalo Hỗ Trợ' }
       });
     }
 
     if (telegramContact !== undefined) {
+      const cleanTele = telegramContact ? String(telegramContact).trim() : '';
       await prisma.systemSetting.upsert({
         where: { key: 'telegramContact' },
-        update: { value: String(telegramContact).trim() },
-        create: { key: 'telegramContact', value: String(telegramContact).trim(), label: 'Telegram Hỗ Trợ' }
+        update: { value: cleanTele },
+        create: { key: 'telegramContact', value: cleanTele, label: 'Telegram Hỗ Trợ' }
       });
     }
 
@@ -585,7 +587,7 @@ exports.updateSystemSettings = async (req, res) => {
       'UPDATE_SETTINGS',
       'SYSTEM',
       'CONTACT_SETTINGS',
-      `Admin ${req.user.fullName} đã cập nhật cấu hình liên hệ: Zalo (${zaloContact}), Telegram (${telegramContact})`
+      `${req.user.role || 'Admin'} ${req.user.fullName} đã cập nhật cấu hình liên hệ: Zalo (${zaloContact || ''}), Telegram (${telegramContact || ''})`
     );
 
     const updated = await prisma.systemSetting.findMany();
@@ -597,11 +599,11 @@ exports.updateSystemSettings = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Đã cập nhật cấu hình hệ thống thành công!',
+      message: 'Đã cập nhật cấu hình liên hệ thành công!',
       settings: settingsMap
     });
   } catch (err) {
     console.error('updateSystemSettings error:', err);
-    res.status(500).json({ message: 'Lỗi khi cập nhật cấu hình hệ thống.' });
+    res.status(500).json({ message: 'Lỗi khi cập nhật cấu hình hệ thống: ' + (err.message || 'Lỗi server') });
   }
 };

@@ -500,12 +500,24 @@ exports.startSupportConversation = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng chọn nhân viên hỗ trợ.' });
     }
 
-    if (staffId === userId) {
-      return res.status(400).json({ message: 'Bạn không thể tự chat hỗ trợ với chính mình.' });
+    let targetStaffId = staffId;
+    if (targetStaffId === userId) {
+      const anotherStaff = await prisma.user.findFirst({
+        where: {
+          id: { not: userId },
+          role: { in: ['ADMIN', 'QTV', 'CTV'] },
+          status: 'ACTIVE'
+        }
+      });
+      if (anotherStaff) {
+        targetStaffId = anotherStaff.id;
+      } else {
+        return res.status(400).json({ message: 'Bạn đang đăng nhập bằng tài khoản Quản trị viên/QTV. Hãy vào trang Tin Nhắn để kiểm tra và phản hồi các yêu cầu từ sinh viên!' });
+      }
     }
 
     const staffUser = await prisma.user.findUnique({
-      where: { id: staffId },
+      where: { id: targetStaffId },
       select: { id: true, fullName: true, username: true, role: true }
     });
 
@@ -515,7 +527,7 @@ exports.startSupportConversation = async (req, res) => {
 
     // Tìm product của staff hoặc user, hoặc product hệ thống
     let product = await prisma.product.findFirst({
-      where: { sellerId: staffId }
+      where: { sellerId: targetStaffId }
     });
 
     if (!product) {
@@ -545,7 +557,7 @@ exports.startSupportConversation = async (req, res) => {
           isFree: true,
           condition: 'NEW',
           status: 'ACTIVE',
-          sellerId: staffId,
+          sellerId: targetStaffId,
           categoryId: cat.id,
           district: 'Hai Bà Trưng',
           meetingSpotType: 'CAMPUS'
@@ -558,8 +570,8 @@ exports.startSupportConversation = async (req, res) => {
       where: {
         productId: product.id,
         OR: [
-          { buyerId: userId, sellerId: staffId },
-          { buyerId: staffId, sellerId: userId }
+          { buyerId: userId, sellerId: targetStaffId },
+          { buyerId: targetStaffId, sellerId: userId }
         ]
       },
       include: {
@@ -574,7 +586,7 @@ exports.startSupportConversation = async (req, res) => {
         data: {
           productId: product.id,
           buyerId: userId,
-          sellerId: staffId
+          sellerId: targetStaffId
         },
         include: {
           product: { include: { images: { take: 1 }, seller: { select: { fullName: true } } } },

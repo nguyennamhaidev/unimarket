@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { getImageUrl, handleImageError, DEFAULT_AVATAR } from '../../utils/imageHelper';
 
 export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotType = 'product' }) {
   const navigate = useNavigate();
@@ -165,7 +166,7 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
             </div>
           ) : (
             staffList.map((staff) => {
-              const avatarUrl = staff.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${staff.username}`;
+              const avatarUrl = getImageUrl(staff.avatar, DEFAULT_AVATAR);
               const isConnecting = connectingId === staff.id;
 
               return (
@@ -178,6 +179,7 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
                       <img
                         src={avatarUrl}
                         alt={staff.fullName}
+                        onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
                         className="w-12 h-12 rounded-2xl object-cover bg-slate-100 border border-slate-200"
                       />
                       <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-full flex items-center justify-center text-[9px] font-black border-2 border-white">
@@ -188,10 +190,12 @@ export default function VipSlotContactModal({ isOpen, onClose, slotNumber, slotT
                     <div className="min-w-0">
                       <div className="font-extrabold text-xs sm:text-sm text-slate-900 truncate flex items-center gap-1.5">
                         <span>{staff.fullName}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                          staff.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                          staff.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' :
+                          staff.role === 'QTV' ? 'bg-purple-100 text-purple-900' :
+                          'bg-emerald-100 text-emerald-900'
                         }`}>
-                          {staff.role === 'ADMIN' ? 'Admin' : 'CTV'}
+                          {staff.role === 'ADMIN' ? 'Admin' : staff.role === 'QTV' ? 'QTV' : 'CTV'}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-400 truncate">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Star, 
@@ -16,7 +16,10 @@ import {
   Lock, 
   Trash2,
   Check,
-  UserCheck
+  UserCheck,
+  Camera,
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/common/ProductCard';
@@ -27,6 +30,7 @@ export default function UserProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: currentUser, logout, updateProfile } = useAuth();
+  const avatarInputRef = useRef(null);
 
   const isMyProfile = currentUser?.id === id;
 
@@ -44,6 +48,8 @@ export default function UserProfilePage() {
   const [faculty, setFaculty] = useState('');
   const [studentCohort, setStudentCohort] = useState('');
   const [district, setDistrict] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [zalo, setZalo] = useState('');
   const [facebook, setFacebook] = useState('');
   const [telegram, setTelegram] = useState('');
@@ -81,6 +87,7 @@ export default function UserProfilePage() {
         setFaculty(res.data.user.faculty || '');
         setStudentCohort(res.data.user.studentCohort || '');
         setDistrict(res.data.user.district || '');
+        setAvatar(res.data.user.avatar || '');
         setZalo(res.data.user.zalo || '');
         setFacebook(res.data.user.facebook || '');
         setTelegram(res.data.user.telegram || '');
@@ -90,6 +97,59 @@ export default function UserProfilePage() {
       console.error('fetchProfile error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, JPEG, WEBP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Kích thước ảnh không được vượt quá 5MB.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingAvatar(true);
+    try {
+      const res = await api.post('/upload/single', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.url) {
+        const uploadedUrl = res.data.url;
+        setAvatar(uploadedUrl);
+        await updateProfile({ avatar: uploadedUrl });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+        fetchProfile();
+      }
+    } catch (err) {
+      console.error('Upload avatar error:', err);
+      alert(err.response?.data?.message || 'Lỗi khi tải ảnh đại diện lên.');
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  const handleRandomizeAvatar = async () => {
+    const randomSeed = `${currentUser?.username || 'user'}_${Math.random().toString(36).substring(2, 7)}`;
+    const newAvatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${randomSeed}`;
+    setAvatar(newAvatarUrl);
+    try {
+      await updateProfile({ avatar: newAvatarUrl });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+      fetchProfile();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -116,6 +176,7 @@ export default function UserProfilePage() {
         faculty,
         studentCohort,
         district,
+        avatar,
         zalo,
         facebook,
         telegram,
@@ -209,12 +270,25 @@ export default function UserProfilePage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           
           <div className="flex items-start gap-4 sm:gap-6">
-            <img
-              src={getImageUrl(user.avatar, DEFAULT_AVATAR)}
-              alt={user.fullName}
-              onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover bg-emerald-50 border-2 border-emerald-100 shadow-md shadow-emerald-600/10"
-            />
+            <div className="relative group shrink-0">
+              <img
+                src={getImageUrl(user.avatar, DEFAULT_AVATAR)}
+                alt={user.fullName}
+                onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover bg-emerald-50 border-2 border-emerald-100 shadow-md shadow-emerald-600/10"
+              />
+              {isMyProfile && (
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  title="Thay đổi ảnh đại diện"
+                  className="absolute inset-0 bg-slate-900/60 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold gap-1 cursor-pointer backdrop-blur-2xs"
+                >
+                  <Camera className="w-5 h-5 text-white" />
+                  <span>Đổi ảnh</span>
+                </button>
+              )}
+            </div>
             
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -525,6 +599,65 @@ export default function UserProfilePage() {
                 <span>Cập nhật hồ sơ thành công!</span>
               </div>
             )}
+
+            {/* Avatar Management Section */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <label className="text-xs font-bold text-slate-800 block">
+                Ảnh đại diện (Avatar)
+              </label>
+              
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative group shrink-0">
+                  <img
+                    src={getImageUrl(avatar || user.avatar, DEFAULT_AVATAR)}
+                    alt="Avatar Preview"
+                    onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                    className="w-16 h-16 rounded-2xl object-cover bg-white border-2 border-emerald-200 shadow-xs"
+                  />
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-slate-900/70 rounded-2xl flex items-center justify-center text-white">
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 flex-1 w-full">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    onChange={handleAvatarFileUpload}
+                    className="hidden"
+                  />
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={uploadingAvatar}
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingAvatar ? 'Đang tải lên...' : 'Tải ảnh từ máy'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={uploadingAvatar}
+                      onClick={handleRandomizeAvatar}
+                      className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Đổi ngẫu nhiên</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400">
+                    Hỗ trợ JPG, PNG, WEBP (Tối đa 5MB). Ảnh cập nhật ngay lập tức.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="space-y-1">

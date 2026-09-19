@@ -28,6 +28,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl, handleImageError, DEFAULT_AVATAR } from '../utils/imageHelper';
 import api from '../api';
 
 export default function AdminDashboardPage() {
@@ -111,7 +112,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (activeTab === 'overview' && isAdmin) loadDashboardStats();
-    else if (activeTab === 'settings' && isAdmin) loadSystemSettings();
+    else if (activeTab === 'settings') loadSystemSettings();
     else if (activeTab === 'users' && isAdmin) loadUsers();
     else if (activeTab === 'products' && isAdmin) loadProducts();
     else if (activeTab === 'reports' && isAdmin) loadReports();
@@ -506,9 +507,9 @@ export default function AdminDashboardPage() {
     { id: 'featured_products', label: '🔥 Sản phẩm nổi bật (20 Slot)' },
     { id: 'featured_shops', label: '⭐ Gian hàng nổi bật (20 Slot)' },
     { id: 'featured_logs', label: '📜 Lịch sử Featured' },
+    { id: 'settings', label: '⚙️ Cấu Hình Zalo & Telegram' },
     ...(isAdmin ? [
       { id: 'overview', label: '📊 Tổng quan hệ thống' },
-      { id: 'settings', label: '⚙️ Cấu Hình Zalo & Telegram' },
       { id: 'users', label: '👥 Người dùng & Phân quyền' },
       { id: 'products', label: '📦 Quản lý Tất cả Sản Phẩm' },
       { id: 'reports', label: `🚩 Xử lý Báo Cáo (${stats?.stats?.pendingReports || 0})` },
@@ -1854,8 +1855,9 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-xs text-slate-900 truncate" title={prod.title}>
-                                {prod.title}
+                              <h4 className="font-bold text-xs text-slate-900 truncate" title={`${prod.title} - ${prod.seller?.fullName || prod.seller?.username}`}>
+                                <span className="text-slate-950 font-black">{prod.title}</span>
+                                <span className="text-orange-700 font-semibold ml-1">- {prod.seller?.fullName || `@${prod.seller?.username}`}</span>
                               </h4>
                               {isAlreadyFeatured && (
                                 <span className="bg-orange-100 text-orange-800 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">
@@ -2060,12 +2062,13 @@ export default function AdminDashboardPage() {
                     return (
                       <div key={seller.id} className="py-3 px-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50/80 rounded-2xl transition-all border border-transparent hover:border-slate-200">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs overflow-hidden relative">
-                            {seller.avatar ? (
-                              <img src={seller.avatar} alt={seller.fullName} className="w-full h-full object-cover" />
-                            ) : (
-                              seller.fullName?.charAt(0) || 'U'
-                            )}
+                          <div className="w-14 h-14 rounded-2xl bg-teal-50 border-2 border-teal-200 overflow-hidden shrink-0 shadow-xs relative">
+                            <img
+                              src={getImageUrl(seller.avatar, DEFAULT_AVATAR)}
+                              alt={seller.fullName}
+                              onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                              className="w-full h-full object-cover"
+                            />
                             {isAlreadyFeatured && (
                               <span className="absolute bottom-0 inset-x-0 bg-teal-800 text-white text-[8px] font-black text-center py-0.5">
                                 Shop {seller.featuredShop.slotNumber < 10 ? `0${seller.featuredShop.slotNumber}` : seller.featuredShop.slotNumber}
@@ -2077,6 +2080,14 @@ export default function AdminDashboardPage() {
                               <h4 className="font-bold text-xs text-slate-900 truncate" title={seller.fullName}>
                                 {seller.fullName}
                               </h4>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                                seller.role === 'ADMIN' ? 'bg-amber-100 text-amber-900' :
+                                seller.role === 'QTV' ? 'bg-purple-100 text-purple-900' :
+                                seller.role === 'CTV' ? 'bg-emerald-100 text-emerald-900' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {seller.role || 'USER'}
+                              </span>
                               {isAlreadyFeatured && (
                                 <span className="bg-teal-100 text-teal-800 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">
                                   Đang ở Shop Slot #{seller.featuredShop.slotNumber}

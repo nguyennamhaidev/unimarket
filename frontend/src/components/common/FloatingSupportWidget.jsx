@@ -16,15 +16,22 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
+import { getImageUrl, handleImageError, DEFAULT_AVATAR } from '../../utils/imageHelper';
 
 export default function FloatingSupportWidget() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'report'
+  const [staffCategory, setStaffCategory] = useState('admin'); // 'admin' | 'qtv'
   const [supportStaff, setSupportStaff] = useState({ admins: [], qtvs: [] });
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [connectingId, setConnectingId] = useState(null);
+  const [reportReason, setReportReason] = useState('SCAM');
+  const [reportTarget, setReportTarget] = useState('');
+  const [reportDesc, setReportDesc] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
   const [systemSettings, setSystemSettings] = useState({
     zaloContact: 'https://zalo.me/0987654321',
     telegramContact: 'https://t.me/unimarket_support'
@@ -207,75 +214,139 @@ export default function FloatingSupportWidget() {
                 </p>
               </div>
 
+              {/* Sub-tabs: Admin vs QTV */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setStaffCategory('admin')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    staffCategory === 'admin'
+                      ? 'bg-white text-rose-700 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-rose-600" />
+                  <span>1. Admin ({supportStaff.admins?.length || 0})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStaffCategory('qtv')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    staffCategory === 'qtv'
+                      ? 'bg-white text-purple-700 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5 text-purple-600" />
+                  <span>2. Ban QTV ({supportStaff.qtvs?.length || 0})</span>
+                </button>
+              </div>
+
               {/* Staff List */}
               <div className="space-y-2">
-                <div className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Ban Quản Trị &amp; QTV Hỗ Trợ 24/7</span>
-                </div>
-
                 {loadingStaff ? (
                   <div className="space-y-2">
                     {[...Array(2)].map((_, i) => (
                       <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse"></div>
                     ))}
                   </div>
-                ) : [...supportStaff.admins, ...(supportStaff.qtvs || [])].length === 0 ? (
-                  <div className="text-center py-6 text-slate-400">
-                    Đang kết nối hệ thống hỗ trợ...
-                  </div>
                 ) : (
-                  Array.from(new Map([...supportStaff.admins, ...(supportStaff.qtvs || [])].map(s => [s.id, s])).values()).map((staff) => {
-                    const avatarUrl = staff.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${staff.username}`;
-                    const isConnecting = connectingId === staff.id;
+                  (() => {
+                    const currentList = (staffCategory === 'admin' ? supportStaff.admins : supportStaff.qtvs) || [];
+                    const displayList = currentList.length > 0 ? currentList : (supportStaff.admins?.length > 0 ? supportStaff.admins : supportStaff.qtvs);
 
-                    return (
-                      <div
-                        key={staff.id}
-                        className="p-3 bg-white rounded-2xl border border-slate-200 hover:border-rose-300 hover:shadow-xs transition-all flex items-center justify-between gap-2.5"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <img
-                            src={avatarUrl}
-                            alt=""
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-bold text-slate-900 truncate flex items-center gap-1">
-                              <span>{staff.fullName}</span>
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
-                                staff.role === 'ADMIN' 
-                                  ? 'bg-rose-100 text-rose-800' 
-                                  : staff.role === 'QTV' 
-                                  ? 'bg-purple-100 text-purple-800' 
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}>
-                                {staff.role === 'ADMIN' ? 'Admin' : staff.role === 'QTV' ? 'QTV' : 'CTV'}
-                              </span>
+                    if (!displayList || displayList.length === 0) {
+                      return (
+                        <div className="text-center py-6 text-slate-400">
+                          Đang kết nối hệ thống hỗ trợ...
+                        </div>
+                      );
+                    }
+
+                    return displayList.map((staff) => {
+                      const avatarUrl = getImageUrl(staff.avatar, DEFAULT_AVATAR);
+                      const isConnecting = connectingId === staff.id;
+
+                      return (
+                        <div
+                          key={staff.id}
+                          className="p-3 bg-white rounded-2xl border border-slate-200 hover:border-rose-300 hover:shadow-xs transition-all flex items-center justify-between gap-2.5"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative shrink-0">
+                              <img
+                                src={avatarUrl}
+                                alt={staff.fullName}
+                                onError={(e) => handleImageError(e, DEFAULT_AVATAR)}
+                                className="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0"
+                              />
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
                             </div>
-                            <div className="text-[10px] text-slate-400 truncate">
-                              @{staff.username} • {staff.university?.shortName || 'UniMarket Support'}
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 truncate flex items-center gap-1">
+                                <span>{staff.fullName}</span>
+                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                                  staff.role === 'ADMIN' 
+                                    ? 'bg-rose-100 text-rose-800' 
+                                    : staff.role === 'QTV' 
+                                    ? 'bg-purple-100 text-purple-800' 
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  {staff.role === 'ADMIN' ? 'Admin' : staff.role === 'QTV' ? 'QTV' : 'CTV'}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">
+                                @{staff.username} • {staff.university?.shortName || 'UniMarket Support'}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[9px] text-emerald-600 font-bold">
+                                <span>● Đang trực tuyến phản hồi ngay</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <button
-                          onClick={() => handleStartChat(staff)}
-                          disabled={isConnecting}
-                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-xs flex items-center gap-1 shrink-0 disabled:opacity-50 cursor-pointer"
-                        >
-                          {isConnecting ? (
-                            <span>Đang mở...</span>
-                          ) : (
-                            <>
-                              <MessageSquare className="w-3 h-3" />
-                              <span>Chat ngay</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {staff.zalo && (
+                              <a
+                                href={staff.zalo.startsWith('http') ? staff.zalo : `https://zalo.me/${staff.zalo}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Chat qua Zalo"
+                                className="w-7 h-7 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black rounded-lg flex items-center justify-center text-[10px] border border-blue-200 transition-colors cursor-pointer"
+                              >
+                                Z
+                              </a>
+                            )}
+                            {staff.telegram && (
+                              <a
+                                href={staff.telegram.startsWith('http') ? staff.telegram : `https://t.me/${staff.telegram.replace('@', '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Chat qua Telegram"
+                                className="w-7 h-7 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center border border-sky-200 transition-colors cursor-pointer"
+                              >
+                                <Send className="w-3 h-3" />
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleStartChat(staff)}
+                              disabled={isConnecting}
+                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-xs flex items-center gap-1 shrink-0 disabled:opacity-50 cursor-pointer"
+                            >
+                              {isConnecting ? (
+                                <span>Đang mở...</span>
+                              ) : (
+                                <>
+                                  <MessageSquare className="w-3 h-3" />
+                                  <span>Chat ngay</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
                 )}
               </div>
 

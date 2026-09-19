@@ -854,7 +854,7 @@ exports.searchProductsForFeatured = async (req, res) => {
 
     const products = await prisma.product.findMany({
       where: whereClause,
-      take: 50,
+      take: 200,
       orderBy: { createdAt: 'desc' },
       include: {
         images: { take: 1 },
@@ -907,7 +907,7 @@ exports.searchSellersForFeatured = async (req, res) => {
 
     const users = await prisma.user.findMany({
       where: whereClause,
-      take: 50,
+      take: 200,
       orderBy: [
         { totalSold: 'desc' },
         { rating: 'desc' },
