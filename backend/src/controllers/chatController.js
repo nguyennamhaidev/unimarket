@@ -123,12 +123,26 @@ exports.getMyConversations = async (req, res) => {
         }
       });
 
-      const partner = c.buyerId === userId ? c.seller : c.buyer;
+      const partner = (c.buyerId === userId ? c.seller : c.buyer) || {
+        id: 'deleted_user',
+        fullName: 'Người dùng UniMarket',
+        username: 'unimarket_user',
+        avatar: null
+      };
+
+      const product = c.product || {
+        id: c.productId,
+        title: 'Sản phẩm đã gỡ hoặc không tồn tại',
+        price: 0,
+        isFree: false,
+        status: 'DELETED',
+        images: []
+      };
 
       return {
         id: c.id,
         productId: c.productId,
-        product: c.product,
+        product,
         partner,
         isSeller: c.sellerId === userId,
         lastMessage: c.messages[0] || null,
@@ -165,7 +179,7 @@ exports.getConversationMessages = async (req, res) => {
     });
 
     if (!conversation) {
-      return res.status(404).json({ message: 'Cuộc trò chuyện không tồn tại.' });
+      return res.status(404).json({ message: 'Cuộc trò chuyện không tồn tại hoặc đã bị xóa.' });
     }
 
     if (conversation.buyerId !== userId && conversation.sellerId !== userId && req.user.role !== 'ADMIN') {
@@ -201,20 +215,54 @@ exports.getConversationMessages = async (req, res) => {
       }
     });
 
+    // Safe fallbacks for deleted product or partner
+    const safeProduct = conversation.product || {
+      id: conversation.productId,
+      title: 'Sản phẩm đã gỡ hoặc không tồn tại',
+      price: 0,
+      isFree: false,
+      status: 'DELETED',
+      images: []
+    };
+
+    const safeBuyer = conversation.buyer || {
+      id: conversation.buyerId,
+      fullName: 'Người mua UniMarket',
+      username: 'buyer',
+      avatar: null,
+      rating: 5.0
+    };
+
+    const safeSeller = conversation.seller || {
+      id: conversation.sellerId,
+      fullName: 'Người bán UniMarket',
+      username: 'seller',
+      avatar: null,
+      rating: 5.0
+    };
+
     // Check if there's an existing transaction / review
-    const transaction = await prisma.transaction.findFirst({
-      where: {
-        productId: conversation.productId,
-        buyerId: conversation.buyerId,
-        sellerId: conversation.sellerId
-      },
-      include: {
-        reviews: true
-      }
-    });
+    let transaction = null;
+    if (conversation.productId) {
+      transaction = await prisma.transaction.findFirst({
+        where: {
+          productId: conversation.productId,
+          buyerId: conversation.buyerId,
+          sellerId: conversation.sellerId
+        },
+        include: {
+          reviews: true
+        }
+      });
+    }
 
     res.json({
-      conversation,
+      conversation: {
+        ...conversation,
+        product: safeProduct,
+        buyer: safeBuyer,
+        seller: safeSeller
+      },
       messages,
       transaction
     });

@@ -1,51 +1,61 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const { authenticate } = require('../middlewares/auth');
+const { uploadImageToStorage } = require('../services/storageService');
 
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'unimarket-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Use memory storage for cloud/persistent upload
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit per file
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (allowedMimes.includes(file.mimetype) || file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Chỉ chấp nhận tệp hình ảnh!'), false);
+      cb(new Error('Chỉ chấp nhận tệp hình ảnh (JPG, PNG, WEBP, GIF, SVG)!'), false);
     }
   }
 });
 
-router.post('/single', authenticate, upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'Vui lòng chọn hình ảnh để tải lên.' });
+// Single image upload
+router.post('/single', authenticate, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Vui lòng chọn hình ảnh để tải lên.' });
+    }
+
+    const url = await uploadImageToStorage(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+
+    res.json({ url, message: 'Tải ảnh lên thành công!' });
+  } catch (err) {
+    console.error('Upload single image error:', err);
+    res.status(500).json({ message: err.message || 'Lỗi khi tải ảnh lên hệ thống.' });
   }
-  const url = `/uploads/${req.file.filename}`;
-  res.json({ url });
 });
 
-router.post('/multiple', authenticate, upload.array('images', 8), (req, res) => {
-  if (!req.files || req.files.length === 0) {
-    return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 hình ảnh.' });
+// Multiple image upload (up to 8 images per product)
+router.post('/multiple', authenticate, upload.array('images', 8), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'Vui lòng chọn ít nhất 1 hình ảnh.' });
+    }
+
+    const uploadPromises = req.files.map(file => 
+      uploadImageToStorage(file.buffer, file.originalname, file.mimetype)
+    );
+
+    const urls = await Promise.all(uploadPromises);
+
+    res.json({ urls, message: `Tải thành công ${urls.length} hình ảnh!` });
+  } catch (err) {
+    console.error('Upload multiple images error:', err);
+    res.status(500).json({ message: err.message || 'Lỗi khi tải nhiều ảnh lên hệ thống.' });
   }
-  const urls = req.files.map(f => `/uploads/${f.filename}`);
-  res.json({ urls });
 });
 
 module.exports = router;

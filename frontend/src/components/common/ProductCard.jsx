@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Star, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
+import { getImageUrl, handleImageError, DEFAULT_PRODUCT_IMAGE } from '../../utils/imageHelper';
 
 export default function ProductCard({ product, onFavoriteToggle }) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [isFav, setIsFav] = useState(product.isFavorited || false);
-  const [favCount, setFavCount] = useState(product.favoritesCount || 0);
+  const [isFav, setIsFav] = useState(product?.isFavorited || false);
+  const [favCount, setFavCount] = useState(product?.favoritesCount || 0);
+
+  if (!product) return null;
 
   const formatPrice = (price) => {
     if (product.isFree || price === 0) return 'Tặng miễn phí 0đ';
@@ -42,7 +45,7 @@ export default function ProductCard({ product, onFavoriteToggle }) {
     }
   };
 
-  const mainImage = product.images?.[0]?.url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80';
+  const mainImage = getImageUrl(product.images?.[0]?.url, DEFAULT_PRODUCT_IMAGE);
 
   return (
     <div className="group relative bg-white rounded-2xl border border-slate-200/80 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-200 flex flex-col overflow-hidden">
@@ -51,7 +54,8 @@ export default function ProductCard({ product, onFavoriteToggle }) {
       <Link to={`/product/${product.id}`} className="relative block aspect-[4/3] bg-slate-100 overflow-hidden">
         <img
           src={mainImage}
-          alt={product.title}
+          alt={product.title || 'Sản phẩm'}
+          onError={(e) => handleImageError(e, DEFAULT_PRODUCT_IMAGE)}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />

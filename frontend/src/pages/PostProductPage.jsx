@@ -12,6 +12,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl, handleImageError } from '../utils/imageHelper';
 import api from '../api';
 
 export default function PostProductPage() {
@@ -190,7 +191,7 @@ export default function PostProductPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             {images.map((img, idx) => (
               <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-slate-200 group">
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <img src={getImageUrl(img)} onError={handleImageError} alt="" className="w-full h-full object-cover" />
                 {idx === 0 && (
                   <span className="absolute bottom-1.5 left-1.5 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
                     Ảnh bìa

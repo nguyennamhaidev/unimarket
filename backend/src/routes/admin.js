@@ -1,21 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { authenticate, requireAdmin } = require('../middlewares/auth');
+const { authenticate, requireAdmin, requireQtvOrAdmin } = require('../middlewares/auth');
 
-router.use(authenticate, requireAdmin);
+// Base authentication check for all admin routes
+router.use(authenticate);
 
-router.get('/stats', adminController.getDashboardStats);
-router.get('/users', adminController.getUsers);
-router.post('/users/:id/toggle-ban', adminController.toggleBanUser);
-router.post('/users/:id/role', adminController.toggleUserRole);
-router.get('/products', adminController.getProducts);
-router.put('/products/:id/status', adminController.updateProductStatus);
-router.delete('/products/:id', adminController.deleteProduct);
-router.get('/reports', adminController.getReports);
-router.post('/reports/:id/resolve', adminController.resolveReport);
-router.get('/logs', adminController.getAdminLogs);
-router.post('/universities', adminController.createUniversity);
-router.post('/categories', adminController.createCategory);
+// === QTV + ADMIN ACCESSIBLE ROUTES (Moderation) ===
+router.get('/products', requireQtvOrAdmin, adminController.getProducts);
+router.put('/products/:id/status', requireQtvOrAdmin, adminController.updateProductStatus);
+router.delete('/products/:id', requireQtvOrAdmin, adminController.deleteProduct);
+router.get('/reports', requireQtvOrAdmin, adminController.getReports);
+router.post('/reports/:id/resolve', requireQtvOrAdmin, adminController.resolveReport);
+
+// === ADMIN ONLY ROUTES (Full System Management) ===
+router.get('/stats', requireAdmin, adminController.getDashboardStats);
+router.get('/users', requireAdmin, adminController.getUsers);
+router.post('/users/:id/toggle-ban', requireAdmin, adminController.toggleBanUser);
+router.post('/users/:id/role', requireAdmin, adminController.toggleUserRole);
+router.delete('/users/:id', requireAdmin, adminController.deleteUser);
+router.get('/logs', requireAdmin, adminController.getAdminLogs);
+router.post('/universities', requireAdmin, adminController.createUniversity);
+router.post('/categories', requireAdmin, adminController.createCategory);
 
 module.exports = router;
