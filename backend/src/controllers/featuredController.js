@@ -833,27 +833,44 @@ exports.getFeaturedLogs = async (req, res) => {
 exports.searchProductsForFeatured = async (req, res) => {
   try {
     const { query } = req.query;
-    if (!query || query.trim() === '') {
-      return res.json({ products: [] });
-    }
+    const q = query ? query.trim() : '';
 
-    const q = query.trim();
-    const products = await prisma.product.findMany({
-      where: {
+    let whereClause = { status: 'ACTIVE' };
+
+    if (q) {
+      whereClause = {
         status: 'ACTIVE',
         OR: [
           { title: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { district: { contains: q, mode: 'insensitive' } },
           { seller: { username: { contains: q, mode: 'insensitive' } } },
-          { seller: { fullName: { contains: q, mode: 'insensitive' } } }
+          { seller: { fullName: { contains: q, mode: 'insensitive' } } },
+          { category: { name: { contains: q, mode: 'insensitive' } } },
+          { university: { name: { contains: q, mode: 'insensitive' } } },
+          { university: { shortName: { contains: q, mode: 'insensitive' } } }
         ]
-      },
-      take: 15,
+      };
+    }
+
+    const products = await prisma.product.findMany({
+      where: whereClause,
+      take: 20,
+      orderBy: { createdAt: 'desc' },
       include: {
         images: { take: 1 },
         category: true,
         university: true,
         seller: {
-          select: { id: true, fullName: true, username: true, avatar: true }
+          select: { 
+            id: true, 
+            fullName: true, 
+            username: true, 
+            avatar: true,
+            rating: true,
+            totalSold: true,
+            university: true 
+          }
         },
         featuredProduct: true
       }
@@ -870,26 +887,38 @@ exports.searchProductsForFeatured = async (req, res) => {
 exports.searchSellersForFeatured = async (req, res) => {
   try {
     const { query } = req.query;
-    if (!query || query.trim() === '') {
-      return res.json({ sellers: [] });
-    }
+    const q = query ? query.trim() : '';
 
-    const q = query.trim();
-    const users = await prisma.user.findMany({
-      where: {
+    let whereClause = { status: 'ACTIVE' };
+
+    if (q) {
+      whereClause = {
         status: 'ACTIVE',
         OR: [
           { fullName: { contains: q, mode: 'insensitive' } },
           { username: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } }
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q, mode: 'insensitive' } },
+          { university: { name: { contains: q, mode: 'insensitive' } } },
+          { university: { shortName: { contains: q, mode: 'insensitive' } } }
         ]
-      },
-      take: 15,
+      };
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      take: 20,
+      orderBy: [
+        { totalSold: 'desc' },
+        { rating: 'desc' },
+        { createdAt: 'desc' }
+      ],
       select: {
         id: true,
         fullName: true,
         username: true,
         email: true,
+        phone: true,
         avatar: true,
         rating: true,
         totalSold: true,

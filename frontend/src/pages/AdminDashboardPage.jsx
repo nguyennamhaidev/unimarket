@@ -201,21 +201,48 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleSearchProducts = async (query) => {
+  const handleSearchProducts = async (query = '') => {
     setProductSearchQuery(query);
-    if (!query.trim()) {
-      setProductSearchResults([]);
-      return;
-    }
     setSearchingProducts(true);
     try {
-      const res = await api.get(`/featured/admin/search-products?query=${encodeURIComponent(query.trim())}`);
+      const q = query ? query.trim() : '';
+      const res = await api.get(`/featured/admin/search-products?query=${encodeURIComponent(q)}`);
       setProductSearchResults(res.data.products || []);
     } catch (err) {
-      console.error(err);
+      console.error('handleSearchProducts error:', err);
     } finally {
       setSearchingProducts(false);
     }
+  };
+
+  const handleSearchShops = async (query = '') => {
+    setShopSearchQuery(query);
+    setSearchingShops(true);
+    try {
+      const q = query ? query.trim() : '';
+      const res = await api.get(`/featured/admin/search-sellers?query=${encodeURIComponent(q)}`);
+      setShopSearchResults(res.data.sellers || []);
+    } catch (err) {
+      console.error('handleSearchShops error:', err);
+    } finally {
+      setSearchingShops(false);
+    }
+  };
+
+  const openProductModal = (slotNum = null, initialQuery = '') => {
+    const chosenSlot = slotNum || featuredProductSlots.find(s => !s.isOccupied)?.slotNumber || 1;
+    setTargetSlotForProduct(chosenSlot);
+    setProductSearchQuery(initialQuery);
+    setShowProductModal(true);
+    handleSearchProducts(initialQuery);
+  };
+
+  const openShopModal = (slotNum = null, initialQuery = '') => {
+    const chosenSlot = slotNum || featuredShopSlots.find(s => !s.isOccupied)?.slotNumber || 1;
+    setTargetSlotForShop(chosenSlot);
+    setShopSearchQuery(initialQuery);
+    setShowShopModal(true);
+    handleSearchShops(initialQuery);
   };
 
   const handleAssignProduct = async (product, slotNum) => {
@@ -280,22 +307,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleSearchShops = async (query) => {
-    setShopSearchQuery(query);
-    if (!query.trim()) {
-      setShopSearchResults([]);
-      return;
-    }
-    setSearchingShops(true);
-    try {
-      const res = await api.get(`/featured/admin/search-sellers?query=${encodeURIComponent(query.trim())}`);
-      setShopSearchResults(res.data.sellers || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSearchingShops(false);
-    }
-  };
 
   const handleAssignShop = async (targetUser, slotNum) => {
     const targetSlot = featuredShopSlots.find(s => s.slotNumber === slotNum);
@@ -577,7 +588,7 @@ export default function AdminDashboardPage() {
           <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-rose-500/10 border border-orange-200 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-orange-500 text-white rounded-xl">
+                <span className="p-1.5 bg-orange-500 text-white rounded-xl shadow-xs">
                   <Flame className="w-4 h-4" />
                 </span>
                 <h3 className="font-black text-slate-900 text-base">20 Slot Sản Phẩm Nổi Bật Trang Chủ (Gói Marketing)</h3>
@@ -586,10 +597,17 @@ export default function AdminDashboardPage() {
                 Cài đặt số ngày hiển thị cho từng slot. Hệ thống sẽ tự động đếm ngược thời gian, gửi thông báo nhắc hạn (7 ngày, 3 ngày, 1 ngày trước) cho người bán và tự động gỡ khi hết hạn.
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
-                Đang dùng: {featuredProductSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20 slot
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <span className="text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-2xl text-slate-700 shadow-sm">
+                Đang dùng: <strong className="text-orange-600 font-black">{featuredProductSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20</strong> slot
               </span>
+              <button
+                onClick={() => openProductModal()}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white text-xs font-black rounded-2xl shadow-md shadow-orange-500/20 transition-all active:scale-95"
+              >
+                <Flame className="w-4 h-4 fill-white" />
+                <span>+ CHỌN &amp; ĐƯA SP LÊN NỔI BẬT</span>
+              </button>
             </div>
           </div>
 
@@ -722,10 +740,7 @@ export default function AdminDashboardPage() {
                             <span>Gia hạn</span>
                           </button>
                           <button
-                            onClick={() => {
-                              setTargetSlotForProduct(slot.slotNumber);
-                              setShowProductModal(true);
-                            }}
+                            onClick={() => openProductModal(slot.slotNumber)}
                             className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all text-center"
                           >
                             Đổi SP
@@ -756,10 +771,7 @@ export default function AdminDashboardPage() {
                           Vị trí hiển thị số {slot.slotNumber}
                         </p>
                         <button
-                          onClick={() => {
-                            setTargetSlotForProduct(slot.slotNumber);
-                            setShowProductModal(true);
-                          }}
+                          onClick={() => openProductModal(slot.slotNumber)}
                           className="mt-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                         >
                           <Flame className="w-3.5 h-3.5 fill-white" />
@@ -781,7 +793,7 @@ export default function AdminDashboardPage() {
           <div className="bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-indigo-500/10 border border-teal-200 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-teal-600 text-white rounded-xl">
+                <span className="p-1.5 bg-teal-600 text-white rounded-xl shadow-xs">
                   <Star className="w-4 h-4" />
                 </span>
                 <h3 className="font-black text-slate-900 text-base">20 Slot Gian Hàng Sinh Viên Nổi Bật (Gói Marketing)</h3>
@@ -790,10 +802,17 @@ export default function AdminDashboardPage() {
                 Cài đặt số ngày hiển thị cho từng gian hàng sinh viên uy tín. Hệ thống tự động đếm ngược và thông báo nhắc gia hạn trước 7 ngày, 3 ngày, 1 ngày.
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 shadow-sm">
-                Đang dùng: {featuredShopSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20 slot
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <span className="text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-2xl text-slate-700 shadow-sm">
+                Đang dùng: <strong className="text-teal-700 font-black">{featuredShopSlots.filter(s => s.isOccupied && !s.data?.countdown?.isExpired).length} / 20</strong> slot
               </span>
+              <button
+                onClick={() => openShopModal()}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black rounded-2xl shadow-md shadow-teal-600/20 transition-all active:scale-95"
+              >
+                <Star className="w-4 h-4 fill-white" />
+                <span>+ CHỌN &amp; ĐƯA GIAN HÀNG LÊN NỔI BẬT</span>
+              </button>
             </div>
           </div>
 
@@ -921,10 +940,7 @@ export default function AdminDashboardPage() {
                             <span>Gia hạn</span>
                           </button>
                           <button
-                            onClick={() => {
-                              setTargetSlotForShop(slot.slotNumber);
-                              setShowShopModal(true);
-                            }}
+                            onClick={() => openShopModal(slot.slotNumber)}
                             className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition-all text-center"
                           >
                             Đổi Shop
@@ -955,10 +971,7 @@ export default function AdminDashboardPage() {
                           Vị trí gian hàng số {slot.slotNumber}
                         </p>
                         <button
-                          onClick={() => {
-                            setTargetSlotForShop(slot.slotNumber);
-                            setShowShopModal(true);
-                          }}
+                          onClick={() => openShopModal(slot.slotNumber)}
                           className="mt-2 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                         >
                           <Store className="w-3.5 h-3.5" />
@@ -1160,11 +1173,21 @@ export default function AdminDashboardPage() {
                         {u.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3 px-4 text-right space-x-1.5 flex items-center justify-end">
+                      {u.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => openShopModal(null, u.username)}
+                          className="px-2.5 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs transition-all"
+                          title="Đưa gian hàng này lên 20 Slot Nổi Bật Trang Chủ"
+                        >
+                          <Star className="w-3 h-3 fill-teal-500 text-teal-500" />
+                          <span>Lên Top Shop</span>
+                        </button>
+                      )}
                       <Link
                         to={`/profile/${u.id}`}
                         target="_blank"
-                        className="p-1.5 text-slate-500 hover:text-slate-800 inline-block"
+                        className="p-1.5 text-slate-500 hover:text-slate-800 inline-block rounded-lg hover:bg-slate-100"
                         title="Xem shop"
                       >
                         <Eye className="w-4 h-4" />
@@ -1262,18 +1285,28 @@ export default function AdminDashboardPage() {
                         {p.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3 px-4 text-right space-x-1.5 flex items-center justify-end">
+                      {p.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => openProductModal(null, p.title)}
+                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 shadow-2xs transition-all"
+                          title="Đưa sản phẩm này lên 20 Slot Nổi Bật Trang Chủ"
+                        >
+                          <Flame className="w-3 h-3 fill-amber-500 text-amber-500" />
+                          <span>Lên VIP Slot</span>
+                        </button>
+                      )}
                       <Link
                         to={`/product/${p.id}`}
                         target="_blank"
-                        className="p-1.5 text-slate-500 hover:text-slate-800 inline-block"
+                        className="p-1.5 text-slate-500 hover:text-slate-800 inline-block rounded-lg hover:bg-slate-100"
                         title="Xem chi tiết"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Link>
                       <button
                         onClick={() => handleDeleteProduct(p.id, p.title)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded inline-block"
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg inline-block"
                         title="Xóa vi phạm"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1522,16 +1555,19 @@ export default function AdminDashboardPage() {
 
       {/* Modal: Select Product for Slot */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <span className="font-mono text-xs font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs inline-block mb-1">
-                  SLOT #{targetSlotForProduct < 10 ? `0${targetSlotForProduct}` : targetSlotForProduct}
-                </span>
-                <h3 className="font-black text-slate-900 text-lg">Chọn Sản Phẩm Đưa Vào Slot (Gói Marketing)</h3>
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-orange-50 via-white to-amber-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+                  <Flame className="w-5 h-5 fill-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-lg">Đưa Sản Phẩm Lên Vị Trí Nổi Bật (Marketing)</h3>
+                  <p className="text-xs text-slate-500">Tìm kiếm và chọn sản phẩm để hiển thị trên Carousel Trang Chủ</p>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -1547,12 +1583,37 @@ export default function AdminDashboardPage() {
 
             {/* Modal Body */}
             <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              
+              {/* Slot Target Selector */}
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 shrink-0">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span>Chọn Slot đưa sản phẩm vào:</span>
+                </label>
+                <select
+                  value={targetSlotForProduct}
+                  onChange={(e) => setTargetSlotForProduct(parseInt(e.target.value))}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-300 w-full sm:w-auto"
+                >
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map(num => {
+                    const slotData = featuredProductSlots.find(s => s.slotNumber === num);
+                    const isOcc = slotData?.isOccupied && !slotData?.data?.countdown?.isExpired;
+                    const title = slotData?.data?.product?.title;
+                    return (
+                      <option key={num} value={num}>
+                        Slot {num < 10 ? `0${num}` : num} {isOcc ? `(Đang có: ${title?.slice(0, 20)}...)` : '(Slot Trống)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
               {featuredProductSlots.find(s => s.slotNumber === targetSlotForProduct)?.isOccupied && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3.5 rounded-2xl text-xs flex items-center gap-2.5">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                   <div>
-                    <strong>Chú ý:</strong> Slot #{targetSlotForProduct} hiện đang có sản phẩm (
-                    <em>{featuredProductSlots.find(s => s.slotNumber === targetSlotForProduct)?.data?.product?.title}</em>). Chọn sản phẩm mới sẽ thay thế sản phẩm này.
+                    <strong>Chú ý:</strong> Slot #{targetSlotForProduct < 10 ? `0${targetSlotForProduct}` : targetSlotForProduct} hiện đang có sản phẩm (
+                    <em>"{featuredProductSlots.find(s => s.slotNumber === targetSlotForProduct)?.data?.product?.title}"</em>). Chọn sản phẩm mới sẽ thay thế sản phẩm này.
                   </div>
                 </div>
               )}
@@ -1606,11 +1667,11 @@ export default function AdminDashboardPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Tìm theo tên sản phẩm, danh mục, người bán..."
+                  placeholder="Tìm theo tên sản phẩm, tên gian hàng, tên người bán (@username), trường ĐH..."
                   value={productSearchQuery}
                   onChange={(e) => handleSearchProducts(e.target.value)}
                   autoFocus
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all font-medium"
                 />
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
@@ -1618,52 +1679,80 @@ export default function AdminDashboardPage() {
               {/* Results List */}
               {searchingProducts ? (
                 <div className="py-12 text-center text-xs text-slate-400">Đang tìm kiếm sản phẩm...</div>
-              ) : productSearchQuery.trim() && productSearchResults.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-400">
-                  Không tìm thấy sản phẩm khả dụng nào (chỉ tìm các sản phẩm đang hiển thị và chưa bán).
-                </div>
               ) : productSearchResults.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  Nhập từ khóa vào ô tìm kiếm ở trên để lọc danh sách sản phẩm sinh viên.
+                <div className="py-12 text-center text-xs text-slate-400">
+                  {productSearchQuery.trim() ? 'Không tìm thấy sản phẩm phù hợp.' : 'Không có sản phẩm nào đang hoạt động.'}
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {productSearchResults.map((prod) => (
-                    <div key={prod.id} className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/70 p-2.5 rounded-2xl transition-all">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                          {prod.images && prod.images.length > 0 ? (
-                            <img src={prod.images[0]?.url || prod.images[0]} alt={prod.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                              <Package className="w-5 h-5" />
+                  {productSearchResults.map((prod) => {
+                    const isAlreadyFeatured = prod.featuredProduct && prod.featuredProduct.status === 'ACTIVE';
+                    return (
+                      <div key={prod.id} className="py-3 px-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50/80 rounded-2xl transition-all border border-transparent hover:border-slate-200">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 relative">
+                            {prod.images && prod.images.length > 0 ? (
+                              <img src={prod.images[0]?.url || prod.images[0]} alt={prod.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                <Package className="w-5 h-5" />
+                              </div>
+                            )}
+                            {isAlreadyFeatured && (
+                              <span className="absolute bottom-0 inset-x-0 bg-orange-600 text-white text-[8px] font-black text-center py-0.5">
+                                Slot {prod.featuredProduct.slotNumber < 10 ? `0${prod.featuredProduct.slotNumber}` : prod.featuredProduct.slotNumber}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-xs text-slate-900 truncate" title={prod.title}>
+                                {prod.title}
+                              </h4>
+                              {isAlreadyFeatured && (
+                                <span className="bg-orange-100 text-orange-800 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">
+                                  Đang ở Slot #{prod.featuredProduct.slotNumber}
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-xs text-slate-900 truncate" title={prod.title}>
-                            {prod.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                            <span className="font-black text-rose-600">
-                              {prod.isFree ? '0đ' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}
-                            </span>
-                            <span>•</span>
-                            <span>@{prod.seller?.username}</span>
-                            <span>•</span>
-                            <span className="text-emerald-700 font-semibold">{prod.seller?.university?.shortName || ''}</span>
+                            
+                            <div className="flex items-center gap-2 text-[11px] mt-0.5">
+                              <span className="font-black text-rose-600">
+                                {prod.isFree ? '0đ Miễn phí' : `${new Intl.NumberFormat('vi-VN').format(prod.price)} đ`}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="text-slate-500 font-semibold">{prod.category?.name || 'Danh mục'}</span>
+                            </div>
+
+                            {/* Seller & University Info */}
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 mt-1">
+                              <span className="text-slate-700 font-bold">
+                                👤 {prod.seller?.fullName} (@{prod.seller?.username})
+                              </span>
+                              <span>•</span>
+                              <span className="text-emerald-700 font-semibold">
+                                🏫 {prod.university?.shortName || prod.seller?.university?.shortName || 'Hà Nội'}
+                              </span>
+                              {prod.seller?.totalSold > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-amber-600 font-bold">★ Đã bán {prod.seller.totalSold}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <button
-                        onClick={() => handleAssignProduct(prod, targetSlotForProduct)}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 transition-all"
-                      >
-                        Chọn Slot {targetSlotForProduct}
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          onClick={() => handleAssignProduct(prod, targetSlotForProduct)}
+                          className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-xs rounded-xl shadow-xs shrink-0 transition-all text-center flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Flame className="w-3.5 h-3.5 fill-white" />
+                          <span>Đưa vào Slot {targetSlotForProduct < 10 ? `0${targetSlotForProduct}` : targetSlotForProduct}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1688,16 +1777,19 @@ export default function AdminDashboardPage() {
 
       {/* Modal: Select Shop for Slot */}
       {showShopModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <span className="font-mono text-xs font-black px-2.5 py-1 bg-teal-800 text-white rounded-xl shadow-xs inline-block mb-1">
-                  SHOP #{targetSlotForShop < 10 ? `0${targetSlotForShop}` : targetSlotForShop}
-                </span>
-                <h3 className="font-black text-slate-900 text-lg">Chọn Gian Hàng Đưa Vào Slot (Gói Marketing)</h3>
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-teal-50 via-white to-emerald-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-600/20">
+                  <Star className="w-5 h-5 fill-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-lg">Đưa Gian Hàng Lên Vị Trí Nổi Bật (Marketing)</h3>
+                  <p className="text-xs text-slate-500">Tìm kiếm và chọn gian hàng sinh viên uy tín để hiển thị trên Carousel Trang Chủ</p>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -1713,12 +1805,37 @@ export default function AdminDashboardPage() {
 
             {/* Modal Body */}
             <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              
+              {/* Slot Target Selector */}
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 shrink-0">
+                  <Store className="w-4 h-4 text-teal-600" />
+                  <span>Chọn Shop Slot đưa gian hàng vào:</span>
+                </label>
+                <select
+                  value={targetSlotForShop}
+                  onChange={(e) => setTargetSlotForShop(parseInt(e.target.value))}
+                  className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-300 w-full sm:w-auto"
+                >
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map(num => {
+                    const slotData = featuredShopSlots.find(s => s.slotNumber === num);
+                    const isOcc = slotData?.isOccupied && !slotData?.data?.countdown?.isExpired;
+                    const shopName = slotData?.data?.user?.fullName;
+                    return (
+                      <option key={num} value={num}>
+                        Shop Slot {num < 10 ? `0${num}` : num} {isOcc ? `(Đang có: ${shopName?.slice(0, 20)}...)` : '(Slot Trống)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
               {featuredShopSlots.find(s => s.slotNumber === targetSlotForShop)?.isOccupied && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3.5 rounded-2xl text-xs flex items-center gap-2.5">
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                   <div>
-                    <strong>Chú ý:</strong> Slot #{targetSlotForShop} hiện đang có gian hàng (
-                    <em>{featuredShopSlots.find(s => s.slotNumber === targetSlotForShop)?.data?.user?.fullName}</em>). Chọn gian hàng mới sẽ thay thế gian hàng này.
+                    <strong>Chú ý:</strong> Shop Slot #{targetSlotForShop < 10 ? `0${targetSlotForShop}` : targetSlotForShop} hiện đang có gian hàng (
+                    <em>"{featuredShopSlots.find(s => s.slotNumber === targetSlotForShop)?.data?.user?.fullName}"</em>). Chọn gian hàng mới sẽ thay thế gian hàng này.
                   </div>
                 </div>
               )}
@@ -1772,11 +1889,11 @@ export default function AdminDashboardPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Tìm theo tên sinh viên, username, email..."
+                  placeholder="Tìm theo tên gian hàng, tên chủ shop, username, email, trường ĐH..."
                   value={shopSearchQuery}
                   onChange={(e) => handleSearchShops(e.target.value)}
                   autoFocus
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-xs focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all font-medium"
                 />
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               </div>
@@ -1784,48 +1901,77 @@ export default function AdminDashboardPage() {
               {/* Results List */}
               {searchingShops ? (
                 <div className="py-12 text-center text-xs text-slate-400">Đang tìm kiếm gian hàng...</div>
-              ) : shopSearchQuery.trim() && shopSearchResults.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-400">
-                  Không tìm thấy người bán phù hợp.
-                </div>
               ) : shopSearchResults.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  Nhập từ khóa vào ô tìm kiếm ở trên để lọc danh sách gian hàng sinh viên.
+                <div className="py-12 text-center text-xs text-slate-400">
+                  {shopSearchQuery.trim() ? 'Không tìm thấy người bán phù hợp.' : 'Không có người bán nào khả dụng.'}
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {shopSearchResults.map((seller) => (
-                    <div key={seller.id} className="py-3 flex items-center justify-between gap-4 hover:bg-slate-50/70 p-2.5 rounded-2xl transition-all">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
-                          {seller.avatar ? (
-                            <img src={seller.avatar} alt={seller.fullName} className="w-full h-full object-cover" />
-                          ) : (
-                            seller.fullName?.charAt(0) || 'U'
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-xs text-slate-900 truncate" title={seller.fullName}>
-                            {seller.fullName}
-                          </h4>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                            <span>@{seller.username}</span>
-                            <span>•</span>
-                            <span className="text-teal-700 font-semibold">{seller.university?.shortName || ''}</span>
-                            <span>•</span>
-                            <span className="font-bold text-slate-700">{seller._count?.products || 0} đồ bán</span>
+                  {shopSearchResults.map((seller) => {
+                    const isAlreadyFeatured = seller.featuredShop && seller.featuredShop.status === 'ACTIVE';
+                    return (
+                      <div key={seller.id} className="py-3 px-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50/80 rounded-2xl transition-all border border-transparent hover:border-slate-200">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white font-black text-base flex items-center justify-center shrink-0 shadow-xs overflow-hidden relative">
+                            {seller.avatar ? (
+                              <img src={seller.avatar} alt={seller.fullName} className="w-full h-full object-cover" />
+                            ) : (
+                              seller.fullName?.charAt(0) || 'U'
+                            )}
+                            {isAlreadyFeatured && (
+                              <span className="absolute bottom-0 inset-x-0 bg-teal-800 text-white text-[8px] font-black text-center py-0.5">
+                                Shop {seller.featuredShop.slotNumber < 10 ? `0${seller.featuredShop.slotNumber}` : seller.featuredShop.slotNumber}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-xs text-slate-900 truncate" title={seller.fullName}>
+                                {seller.fullName}
+                              </h4>
+                              {isAlreadyFeatured && (
+                                <span className="bg-teal-100 text-teal-800 text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0">
+                                  Đang ở Shop Slot #{seller.featuredShop.slotNumber}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                              <span>@{seller.username}</span>
+                              {seller.email && (
+                                <>
+                                  <span>•</span>
+                                  <span className="truncate">{seller.email}</span>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Shop Stats */}
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500 mt-1">
+                              <span className="text-teal-700 font-bold">
+                                🏫 {seller.university?.shortName || seller.university?.name || 'Sinh viên'}
+                              </span>
+                              <span>•</span>
+                              <span className="text-amber-600 font-bold">
+                                ★ {seller.rating ? seller.rating.toFixed(1) : '5.0'} ({seller.totalSold || 0} đã bán)
+                              </span>
+                              <span>•</span>
+                              <span className="text-slate-700 font-bold">
+                                📦 {seller._count?.products || 0} tin đăng
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <button
-                        onClick={() => handleAssignShop(seller, targetSlotForShop)}
-                        className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs shrink-0 transition-all"
-                      >
-                        Chọn Slot {targetSlotForShop}
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          onClick={() => handleAssignShop(seller, targetSlotForShop)}
+                          className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs rounded-xl shadow-xs shrink-0 transition-all text-center flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-white" />
+                          <span>Đưa vào Shop Slot {targetSlotForShop < 10 ? `0${targetSlotForShop}` : targetSlotForShop}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
