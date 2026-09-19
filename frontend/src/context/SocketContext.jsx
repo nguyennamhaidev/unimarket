@@ -11,8 +11,9 @@ const getSocketURL = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return 'http://localhost:5000';
     }
+    return window.location.origin;
   }
-  return 'https://unimarket-backend-w17a.onrender.com';
+  return '';
 };
 
 export const SocketProvider = ({ children }) => {
